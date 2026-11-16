@@ -7,6 +7,11 @@
   <meta name="theme-color" content="#efe4d4">
   <title>Ripe — Pomodoro timer</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <script>
+    if (navigator.userAgent.includes("Electron")) {
+      document.documentElement.classList.add("desktop-app");
+    }
+  </script>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body data-phase="focus">

@@ -1,8 +1,13 @@
 {
   "name": "ripe",
+  "productName": "Ripe",
+  "version": "1.0.0",
   "private": true,
+  "description": "A pomodoro timer for focus blocks and breaks.",
   "type": "module",
+  "main": "main.cjs",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "start": "electron ."
   }
 }

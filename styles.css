@@ -132,6 +132,10 @@ button:disabled {
   margin-bottom: 1.6rem;
 }
 
+html.desktop-app .top {
+  padding-left: 4.75rem;
+}
+
 .brand {
   display: flex;
   align-items: center;
