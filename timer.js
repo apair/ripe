@@ -1,9 +1,16 @@
 /**
- * Pomodoro state machine. Every function takes the current time so the
- * clock can be moved in tests and the running session survives a reload.
+ * Pomodoro state machine, following the Pomofocus session rules.
+ * Every function takes the current time so the clock can be moved in
+ * tests and a running session survives a reload.
  *
  * status: "idle" | "running" | "paused"
  * phase:  "focus" | "short" | "long"
+ *
+ * pomodorosToday is the number of focus intervals finished today. It does
+ * not reset when the long break starts. The long break arrives when that
+ * count is a multiple of the long-break interval. A zero-length break is
+ * skipped. The number under the timer is today's current pomodoro during
+ * focus, and the pomodoro just finished during a break.
  */
 
 export const PHASES = ["focus", "short", "long"];
@@ -15,6 +22,8 @@ export const DEFAULT_SETTINGS = {
   roundsUntilLong: 4,
   autoStartBreaks: false,
   autoStartFocus: false,
+  autoCheckTasks: false,
+  autoSwitchTasks: true,
   sound: true,
   notify: false,
 };
@@ -28,12 +37,14 @@ export const CLASSIC_TIMING = {
 
 const LIMITS = {
   focusMin: [1, 120],
-  shortMin: [1, 60],
-  longMin: [1, 60],
-  roundsUntilLong: [2, 8],
+  shortMin: [0, 60],
+  longMin: [0, 60],
+  roundsUntilLong: [1, 12],
+  estimate: [1, 99],
 };
 
 const AUTO_START_WINDOW_MS = 5000;
+const AUTO_START_DELAY_MS = 2000;
 
 export function durationMs(settings, phase) {
   const key = phase === "short" ? "shortMin" : phase === "long" ? "longMin" : "focusMin";
@@ -49,7 +60,8 @@ export function freshState(now = Date.now(), settings = DEFAULT_SETTINGS) {
     endsAt: null,
     remainingMs: durationMs(normalized, "focus"),
     plannedMs: null,
-    completedFocusInCycle: 0,
+    pomodorosToday: 0,
+    autoStartAt: null,
     todayKey: dayKey(now),
     focusDoneToday: 0,
     focusMsToday: 0,
@@ -70,7 +82,13 @@ export function dayKey(now) {
 export function rollDay(state, now) {
   const key = dayKey(now);
   if (key === state.todayKey) return state;
-  return { ...state, todayKey: key, focusDoneToday: 0, focusMsToday: 0 };
+  return {
+    ...state,
+    todayKey: key,
+    focusDoneToday: 0,
+    focusMsToday: 0,
+    pomodorosToday: 0,
+  };
 }
 
 export function remaining(state, now) {
@@ -101,14 +119,20 @@ export function todayLabel(state) {
   return `${blocks} · ${formatSpan(state.focusMsToday)} today`;
 }
 
+export function sessionNumber(state) {
+  const count = state.pomodorosToday;
+  if (state.phase === "focus" || count === 0) return count + 1;
+  return count;
+}
+
 export function roundLabel(state) {
-  const total = state.settings.roundsUntilLong;
-  if (state.phase === "long") return "Long break · cycle complete";
-  if (state.phase === "short") {
-    return `Short break · ${state.completedFocusInCycle} of ${total} this cycle`;
-  }
-  const current = Math.min(total, state.completedFocusInCycle + 1);
-  return `Round ${current} of ${total}`;
+  return `#${sessionNumber(state)}`;
+}
+
+export function cueText(state) {
+  const active = state.tasks.find((task) => task.id === state.activeTaskId);
+  if (active) return active.title;
+  return state.phase === "focus" ? "Time to focus!" : "Time for a break!";
 }
 
 export function phaseLabel(phase) {
@@ -119,25 +143,24 @@ export function phaseLabel(phase) {
 
 export function bannerText(banner) {
   if (!banner) return "";
-  const { from, to, auto } = banner;
-  if (from === "focus" && to === "long") {
-    return auto
-      ? "Cycle complete. Long break started."
-      : "Cycle complete. Take a long break.";
-  }
-  if (from === "focus") {
-    return auto
-      ? "Focus block finished. Short break started."
-      : "Focus block finished. Short break is ready.";
-  }
-  if (from === "long") {
-    return auto
-      ? "Long break finished. Focus started."
-      : "Long break finished. Ready for the next focus block.";
-  }
-  return auto
-    ? "Break finished. Focus started."
-    : "Break finished. Next focus block is ready.";
+  if (banner.from === "focus" && banner.to === "long") return "Time to take a long break!";
+  if (banner.from === "focus" && banner.to === "short") return "Time to take a short break!";
+  return "Time to focus!";
+}
+
+export function pipMarks(state) {
+  const total = state.settings.roundsUntilLong;
+  const inCycle = state.pomodorosToday % total;
+  if (state.phase === "long") return { total, done: total, current: -1 };
+  if (state.phase === "short") return { total, done: inCycle, current: -1 };
+  return { total, done: inCycle, current: inCycle };
+}
+
+export function nextPhase(from, pomodorosToday, settings) {
+  if (from !== "focus") return "focus";
+  const finishedCycle = pomodorosToday % settings.roundsUntilLong === 0;
+  if (finishedCycle) return settings.longMin <= 0 ? "focus" : "long";
+  return settings.shortMin <= 0 ? "focus" : "short";
 }
 
 export function start(state, now) {
@@ -148,6 +171,7 @@ export function start(state, now) {
     status: "running",
     endsAt: now + state.remainingMs,
     plannedMs,
+    autoStartAt: null,
     banner: null,
   };
 }
@@ -158,6 +182,7 @@ export function pause(state, now) {
     ...state,
     status: "paused",
     endsAt: null,
+    autoStartAt: null,
     remainingMs: remaining(state, now),
   };
 }
@@ -169,6 +194,7 @@ export function reset(state, now) {
     endsAt: null,
     remainingMs: durationMs(state.settings, state.phase),
     plannedMs: null,
+    autoStartAt: null,
     banner: null,
   };
 }
@@ -182,31 +208,19 @@ export function switchPhase(state, phase, now) {
     endsAt: null,
     remainingMs: durationMs(state.settings, phase),
     plannedMs: null,
+    autoStartAt: null,
     banner: null,
   };
 }
 
 export function skip(state, now) {
-  if (state.status === "idle") return state;
-  const phase = state.phase === "focus" ? "short" : "focus";
-  return {
-    ...rollDay(state, now),
-    phase,
-    status: "idle",
-    endsAt: null,
-    remainingMs: durationMs(state.settings, phase),
-    plannedMs: null,
-    banner: null,
-  };
+  if (state.status === "idle") return { state, completed: null };
+  return finish(rollDay(state, now), now, now, true);
 }
 
 export function updateSettings(state, patch, now) {
   const settings = normalizeSettings({ ...state.settings, ...patch });
-  let completedFocusInCycle = Math.min(
-    state.completedFocusInCycle,
-    settings.roundsUntilLong - 1,
-  );
-  const next = { ...state, settings, completedFocusInCycle };
+  const next = { ...state, settings };
   if (state.status === "idle") {
     return {
       ...rollDay(next, now),
@@ -218,7 +232,7 @@ export function updateSettings(state, patch, now) {
   return next;
 }
 
-export function addTask(state, title, now = Date.now()) {
+export function addTask(state, title, now = Date.now(), estimate = 1) {
   const clean = String(title || "").trim().replace(/\s+/g, " ").slice(0, 120);
   if (!clean) return state;
   const task = {
@@ -226,6 +240,7 @@ export function addTask(state, title, now = Date.now()) {
     title: clean,
     done: false,
     pomodoros: 0,
+    estimate: clamp(estimate, ...LIMITS.estimate, 1),
     createdAt: now,
   };
   return {
@@ -235,14 +250,31 @@ export function addTask(state, title, now = Date.now()) {
   };
 }
 
-export function toggleTask(state, id) {
-  if (!state.tasks.some((task) => task.id === id)) return state;
+export function setEstimate(state, id, estimate) {
+  const task = state.tasks.find((item) => item.id === id);
+  if (!task) return state;
+  const value = clamp(estimate, ...LIMITS.estimate, task.estimate);
+  if (value === task.estimate) return state;
   return {
     ...state,
-    tasks: state.tasks.map((task) => (
-      task.id === id ? { ...task, done: !task.done } : task
+    tasks: state.tasks.map((item) => (
+      item.id === id ? { ...item, estimate: value } : item
     )),
   };
+}
+
+export function toggleTask(state, id) {
+  const task = state.tasks.find((item) => item.id === id);
+  if (!task) return state;
+  const done = !task.done;
+  let tasks = state.tasks.map((item) => (
+    item.id === id ? { ...item, done } : item
+  ));
+  let activeTaskId = state.activeTaskId;
+  if (done && state.settings.autoSwitchTasks) {
+    ({ tasks, activeTaskId } = handOff(tasks, id, activeTaskId));
+  }
+  return { ...state, tasks, activeTaskId };
 }
 
 export function selectTask(state, id) {
@@ -271,6 +303,33 @@ export function clearFinished(state) {
   };
 }
 
+export function taskSummary(state, now) {
+  const { tasks, settings } = state;
+  const est = tasks.reduce((sum, task) => (
+    sum + ((task.pomodoros > task.estimate || task.done) ? task.pomodoros : task.estimate)
+  ), 0);
+  const act = tasks.reduce((sum, task) => sum + task.pomodoros, 0);
+  let remaining = 0;
+  for (const task of tasks) {
+    if (task.done || task.pomodoros >= task.estimate) continue;
+    remaining += task.estimate < 1 ? 1 : task.estimate - task.pomodoros;
+  }
+  const focusLeft = (est - act) * durationMs(settings, "focus");
+  const extraBreaks = Math.max(
+    0,
+    breakMs(state.pomodorosToday + remaining - 1, settings) - breakMs(state.pomodorosToday, settings),
+  );
+  const currentBreak = state.phase === "focus" ? 0 : durationMs(settings, state.phase);
+  const remainingMs = Math.max(0, focusLeft + extraBreaks + currentBreak);
+  return {
+    act,
+    est,
+    remainingMs,
+    finishAt: now + remainingMs,
+    hours: Math.floor((remainingMs / 3600000) * 10) / 10,
+  };
+}
+
 export function completeIfDue(state, now) {
   if (state.status !== "running" || !Number.isFinite(state.endsAt)) {
     return { state, completed: null };
@@ -278,6 +337,15 @@ export function completeIfDue(state, now) {
   if (now < state.endsAt) return { state, completed: null };
   const allowAuto = now - state.endsAt <= AUTO_START_WINDOW_MS;
   return finish(state, state.endsAt, now, allowAuto);
+}
+
+export function applyAutoStart(state, now) {
+  if (!Number.isFinite(state.autoStartAt)) return state;
+  if (now < state.autoStartAt) return state;
+  if (now - state.autoStartAt > AUTO_START_DELAY_MS) {
+    return { ...state, autoStartAt: null };
+  }
+  return start({ ...state, autoStartAt: null }, state.autoStartAt);
 }
 
 export function hydrate(json, now) {
@@ -306,6 +374,14 @@ export function hydrate(json, now) {
   let activeTaskId = typeof data.activeTaskId === "string" ? data.activeTaskId : null;
   if (activeTaskId && !tasks.some((task) => task.id === activeTaskId)) activeTaskId = null;
 
+  let pomodorosToday = Number(data.pomodorosToday);
+  if (!Number.isFinite(pomodorosToday)) pomodorosToday = Number(data.completedFocusInCycle);
+  pomodorosToday = clamp(pomodorosToday, 0, 9999, 0);
+
+  let autoStartAt = Number(data.autoStartAt);
+  if (!Number.isFinite(autoStartAt)) autoStartAt = null;
+  if (status === "running") autoStartAt = null;
+
   const base = {
     settings,
     phase,
@@ -313,12 +389,8 @@ export function hydrate(json, now) {
     endsAt,
     remainingMs,
     plannedMs: Number.isFinite(Number(data.plannedMs)) ? Number(data.plannedMs) : null,
-    completedFocusInCycle: clamp(
-      data.completedFocusInCycle,
-      0,
-      settings.roundsUntilLong - 1,
-      0,
-    ),
+    pomodorosToday,
+    autoStartAt,
     todayKey: typeof data.todayKey === "string" ? data.todayKey : dayKey(now),
     focusDoneToday: clamp(data.focusDoneToday, 0, 9999, 0),
     focusMsToday: clamp(data.focusMsToday, 0, 1e12, 0),
@@ -329,7 +401,8 @@ export function hydrate(json, now) {
   };
 
   const rolled = rollDay(base, now);
-  return completeIfDue(rolled, now);
+  const armed = applyAutoStart(rolled, now);
+  return completeIfDue(armed, now);
 }
 
 function finish(state, endedAt, now, allowAuto) {
@@ -348,28 +421,27 @@ function finish(state, endedAt, now, allowAuto) {
   };
 
   let tasks = state.tasks;
+  let activeTaskId = state.activeTaskId;
   let focusDoneToday = state.focusDoneToday;
   let focusMsToday = state.focusMsToday;
-  let completedFocusInCycle = state.completedFocusInCycle;
+  let pomodorosToday = state.pomodorosToday;
   if (from === "focus") {
     focusDoneToday += 1;
     focusMsToday += planned;
-    completedFocusInCycle += 1;
+    pomodorosToday += 1;
     if (task) {
+      const pomodoros = task.pomodoros + 1;
+      const done = task.done || (state.settings.autoCheckTasks && pomodoros >= task.estimate);
       tasks = tasks.map((item) => (
-        item.id === task.id ? { ...item, pomodoros: item.pomodoros + 1 } : item
+        item.id === task.id ? { ...item, pomodoros, done } : item
       ));
+      if (done && !task.done && state.settings.autoSwitchTasks) {
+        ({ tasks, activeTaskId } = handOff(tasks, task.id, activeTaskId));
+      }
     }
   }
 
-  let phase = "focus";
-  if (from === "focus" && completedFocusInCycle >= state.settings.roundsUntilLong) {
-    phase = "long";
-    completedFocusInCycle = 0;
-  } else if (from === "focus") {
-    phase = "short";
-  }
-
+  const phase = nextPhase(from, pomodorosToday, state.settings);
   const auto = Boolean(allowAuto) && (
     (from === "focus" && state.settings.autoStartBreaks)
     || (from !== "focus" && state.settings.autoStartFocus)
@@ -380,19 +452,40 @@ function finish(state, endedAt, now, allowAuto) {
     state: {
       ...state,
       phase,
-      status: auto ? "running" : "idle",
-      endsAt: auto ? now + dur : null,
+      status: "idle",
+      endsAt: null,
       remainingMs: dur,
-      plannedMs: auto ? dur : null,
-      completedFocusInCycle,
+      plannedMs: null,
+      pomodorosToday,
+      autoStartAt: auto ? now + AUTO_START_DELAY_MS : null,
       focusDoneToday,
       focusMsToday,
       tasks,
+      activeTaskId,
       history: [completed, ...state.history].slice(0, 60),
       banner: { from, to: phase, auto },
     },
     completed,
   };
+}
+
+function breakMs(count, settings) {
+  if (count <= 0) return 0;
+  const longBreaks = Math.floor(count / settings.roundsUntilLong);
+  const shortBreaks = count - longBreaks;
+  return shortBreaks * durationMs(settings, "short") + longBreaks * durationMs(settings, "long");
+}
+
+function handOff(tasks, finishedId, activeTaskId) {
+  const finished = tasks.find((task) => task.id === finishedId);
+  const rest = tasks.filter((task) => task.id !== finishedId);
+  const ordered = finished ? [...rest, finished] : tasks;
+  let nextActive = activeTaskId;
+  if (activeTaskId === finishedId) {
+    const next = ordered.find((task) => !task.done);
+    nextActive = next ? next.id : null;
+  }
+  return { tasks: ordered, activeTaskId: nextActive };
 }
 
 function normalizeSettings(input) {
@@ -408,6 +501,10 @@ function normalizeSettings(input) {
     ),
     autoStartBreaks: Boolean(source.autoStartBreaks),
     autoStartFocus: Boolean(source.autoStartFocus),
+    autoCheckTasks: Boolean(source.autoCheckTasks),
+    autoSwitchTasks: source.autoSwitchTasks === undefined
+      ? DEFAULT_SETTINGS.autoSwitchTasks
+      : Boolean(source.autoSwitchTasks),
     sound: source.sound === undefined ? DEFAULT_SETTINGS.sound : Boolean(source.sound),
     notify: Boolean(source.notify),
   };
@@ -426,6 +523,7 @@ function sanitizeTasks(list) {
       title,
       done: Boolean(item.done),
       pomodoros: clamp(item.pomodoros, 0, 999, 0),
+      estimate: clamp(item.estimate, ...LIMITS.estimate, 1),
       createdAt: Number.isFinite(Number(item.createdAt)) ? Number(item.createdAt) : 0,
     });
     if (tasks.length >= 24) break;

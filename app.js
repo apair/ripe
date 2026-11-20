@@ -2,22 +2,27 @@ import {
   addTask,
   bannerText,
   CLASSIC_TIMING,
+  applyAutoStart,
   clearFinished,
   completeIfDue,
+  cueText,
   durationMs,
   formatClock,
   hydrate,
   pause,
   phaseLabel,
+  pipMarks,
   remaining,
   removeTask,
   reset,
   rollDay,
   roundLabel,
   selectTask,
+  setEstimate,
   skip,
   start,
   switchPhase,
+  taskSummary,
   todayLabel,
   toggleTask,
   updateSettings,
@@ -30,9 +35,10 @@ const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
 const timeEl = document.getElementById("time");
 const phaseEl = document.getElementById("phase-label");
 const chipEl = document.getElementById("status-chip");
-const activeTaskEl = document.getElementById("active-task");
 const pipsEl = document.getElementById("pips");
 const roundEl = document.getElementById("round-hint");
+const cueEl = document.getElementById("cue");
+const summaryEl = document.getElementById("task-summary");
 const todayEl = document.getElementById("today");
 const primaryBtn = document.getElementById("primary");
 const resetBtn = document.getElementById("reset");
@@ -61,6 +67,8 @@ const setLong = document.getElementById("set-long");
 const setRounds = document.getElementById("set-rounds");
 const setAutoBreaks = document.getElementById("set-auto-breaks");
 const setAutoFocus = document.getElementById("set-auto-focus");
+const setAutoCheck = document.getElementById("set-auto-check");
+const setAutoSwitch = document.getElementById("set-auto-switch");
 const setSound = document.getElementById("set-sound");
 const setNotify = document.getElementById("set-notify");
 
@@ -112,7 +120,7 @@ function armPulse(taskId) {
 
 function tick() {
   const now = Date.now();
-  const rolled = rollDay(state, now);
+  const rolled = applyAutoStart(rollDay(state, now), now);
   const result = completeIfDue(rolled, now);
   if (result.completed) {
     commit(result.state, result.completed);
@@ -169,11 +177,8 @@ function render() {
   phaseEl.textContent = phaseLabel(state.phase);
   chipEl.hidden = state.status !== "paused";
   roundEl.textContent = roundLabel(state);
+  cueEl.textContent = cueText(state);
   todayEl.textContent = todayLabel(state);
-
-  const active = state.tasks.find((task) => task.id === state.activeTaskId);
-  activeTaskEl.hidden = !active;
-  activeTaskEl.textContent = active ? active.title : "";
 
   for (const button of modeButtons) {
     const on = button.dataset.phase === state.phase;
@@ -205,15 +210,13 @@ function render() {
 }
 
 function renderPips() {
-  const total = state.settings.roundsUntilLong;
+  const marks = pipMarks(state);
   pipsEl.replaceChildren();
-  for (let index = 0; index < total; index += 1) {
+  for (let index = 0; index < marks.total; index += 1) {
     const pip = document.createElement("span");
     pip.className = "pip";
-    const filled = state.phase === "long" || index < state.completedFocusInCycle;
-    const current = state.phase === "focus" && index === state.completedFocusInCycle;
-    if (filled) pip.classList.add("is-done");
-    if (current) pip.classList.add("is-current");
+    if (index < marks.done) pip.classList.add("is-done");
+    if (index === marks.current) pip.classList.add("is-current");
     pipsEl.append(pip);
   }
 }
@@ -249,15 +252,29 @@ function renderTasks() {
     title.textContent = task.title;
     main.append(title);
 
+    const estimate = document.createElement("span");
+    estimate.className = "estimate";
+    const down = document.createElement("button");
+    down.type = "button";
+    down.className = "step";
+    down.dataset.action = "estimate-down";
+    down.dataset.restore = `estimate-down:${task.id}`;
+    down.setAttribute("aria-label", `Decrease estimate for ${task.title}`);
+    down.textContent = "−";
+    down.disabled = task.estimate <= 1;
     const count = document.createElement("span");
     count.className = "count";
-    if (task.pomodoros > 0) {
-      count.textContent = `×${task.pomodoros}`;
-      const blocks = task.pomodoros === 1 ? "1 focus block" : `${task.pomodoros} focus blocks`;
-      count.setAttribute("aria-label", blocks);
-    } else {
-      count.setAttribute("aria-hidden", "true");
-    }
+    count.textContent = `${task.pomodoros}/${task.estimate}`;
+    count.setAttribute("aria-label", `${task.pomodoros} of ${task.estimate} pomodoros`);
+    const up = document.createElement("button");
+    up.type = "button";
+    up.className = "step";
+    up.dataset.action = "estimate-up";
+    up.dataset.restore = `estimate-up:${task.id}`;
+    up.setAttribute("aria-label", `Increase estimate for ${task.title}`);
+    up.textContent = "+";
+    up.disabled = task.estimate >= 99;
+    estimate.append(down, count, up);
 
     const remove = document.createElement("button");
     remove.type = "button";
@@ -267,9 +284,25 @@ function renderTasks() {
     remove.setAttribute("aria-label", `Remove ${task.title}`);
     remove.textContent = "×";
 
-    item.append(checkLabel, main, count, remove);
+    item.append(checkLabel, main, estimate, remove);
     tasksEl.append(item);
   }
+  renderSummary();
+}
+
+function renderSummary() {
+  if (state.tasks.length === 0) {
+    summaryEl.hidden = true;
+    summaryEl.textContent = "";
+    return;
+  }
+  const summary = taskSummary(state, Date.now());
+  const when = new Intl.DateTimeFormat(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(summary.finishAt);
+  summaryEl.hidden = false;
+  summaryEl.textContent = `Pomos: ${summary.act}/${summary.est} · Finish at ${when} (${summary.hours}h)`;
 }
 
 function renderHistory() {
@@ -306,6 +339,8 @@ function syncSettingsForm() {
   setNumber(setRounds, state.settings.roundsUntilLong);
   setAutoBreaks.checked = state.settings.autoStartBreaks;
   setAutoFocus.checked = state.settings.autoStartFocus;
+  setAutoCheck.checked = state.settings.autoCheckTasks;
+  setAutoSwitch.checked = state.settings.autoSwitchTasks;
   setSound.checked = state.settings.sound;
   setNotify.checked = state.settings.notify;
 }
@@ -323,6 +358,8 @@ function readSettingsPatch() {
     roundsUntilLong: setRounds.value,
     autoStartBreaks: setAutoBreaks.checked,
     autoStartFocus: setAutoFocus.checked,
+    autoCheckTasks: setAutoCheck.checked,
+    autoSwitchTasks: setAutoSwitch.checked,
     sound: setSound.checked,
     notify: setNotify.checked,
   };
@@ -387,8 +424,8 @@ function chime(phase) {
 function notify(completed) {
   if (!state.settings.notify || !("Notification" in window)) return;
   if (Notification.permission !== "granted") return;
-  const title = completed.phase === "focus" ? "Focus block finished" : "Break finished";
-  const body = bannerText(state.banner);
+  const title = bannerText(state.banner) || "Timer finished";
+  const body = cueText(state);
   try {
     const notification = new Notification(title, { body, silent: true });
     window.setTimeout(() => notification.close(), 6000);
@@ -407,6 +444,12 @@ function onTaskClick(event) {
   if (action === "toggle") commit(toggleTask(state, id));
   else if (action === "remove") commit(removeTask(state, id));
   else if (action === "select") commit(selectTask(state, id));
+  else if (action === "estimate-down" || action === "estimate-up") {
+    const task = state.tasks.find((item) => item.id === id);
+    if (!task) return;
+    const next = action === "estimate-down" ? task.estimate - 1 : task.estimate + 1;
+    commit(setEstimate(state, id, next));
+  }
 }
 
 function taskIdFrom(item) {
@@ -452,10 +495,9 @@ resetBtn.addEventListener("click", () => {
   announce(`${phaseLabel(state.phase)} reset`);
 });
 skipBtn.addEventListener("click", () => {
-  const next = skip(state, Date.now());
-  if (next === state) return;
-  commit(next);
-  announce(`Skipped to ${phaseLabel(next.phase)}`);
+  const step = skip(state, Date.now());
+  if (step.state === state) return;
+  commit(step.state, step.completed);
 });
 
 function choosePhase(phase) {
@@ -502,7 +544,7 @@ dialog.addEventListener("close", () => {
 for (const input of [setFocus, setShort, setLong, setRounds]) {
   input.addEventListener("change", applySettings);
 }
-for (const input of [setAutoBreaks, setAutoFocus, setSound]) {
+for (const input of [setAutoBreaks, setAutoFocus, setAutoCheck, setAutoSwitch, setSound]) {
   input.addEventListener("change", applySettings);
 }
 
