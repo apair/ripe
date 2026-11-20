@@ -161,6 +161,12 @@ html.desktop-app .top {
   text-transform: uppercase;
 }
 
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .today {
   margin: 0 0 0 auto;
   padding: 0.45rem 0.9rem;
@@ -200,10 +206,24 @@ html.desktop-app .top {
   text-align: center;
 }
 
+.timer-row {
+  display: grid;
+  grid-template-columns: minmax(0, 360px) auto;
+  align-items: center;
+  justify-content: center;
+  gap: 0.85rem;
+  width: 100%;
+}
+
 .plate {
   position: relative;
-  width: min(360px, 86vw);
+  width: 100%;
   aspect-ratio: 1;
+  appearance: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
   border-radius: 50%;
   background:
     radial-gradient(circle at 50% 38%, #fffdf9 0%, #f7f0e4 62%, #eadcc8 100%);
@@ -373,6 +393,21 @@ html.desktop-app .top {
 }
 
 .mode[aria-checked="true"] small { color: var(--accent); }
+
+.next {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: rgba(251, 246, 238, 0.8);
+  color: var(--ink);
+}
+
+.next svg { width: 22px; height: 22px; }
+
+.next:hover:not(:disabled) { background: var(--paper); }
 
 .controls {
   display: flex;
@@ -750,6 +785,7 @@ dialog::backdrop {
   .stage { grid-template-columns: 1fr; gap: 1.5rem; }
   .work { max-height: none; }
   .today { margin-left: 0; order: 3; }
+  .top-actions { margin-left: auto; }
   .top { flex-wrap: wrap; }
   .fields { grid-template-columns: 1fr; }
 }

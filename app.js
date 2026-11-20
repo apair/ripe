@@ -40,9 +40,11 @@ const roundEl = document.getElementById("round-hint");
 const cueEl = document.getElementById("cue");
 const summaryEl = document.getElementById("task-summary");
 const todayEl = document.getElementById("today");
-const primaryBtn = document.getElementById("primary");
+const plateBtn = document.getElementById("plate");
 const resetBtn = document.getElementById("reset");
 const skipBtn = document.getElementById("skip");
+const confirmReset = document.getElementById("confirm-reset");
+const confirmLead = document.getElementById("confirm-reset-lead");
 const bannerEl = document.getElementById("banner");
 const tasksEl = document.getElementById("tasks");
 const taskEmptyEl = document.getElementById("task-empty");
@@ -94,7 +96,10 @@ function load() {
 
 function persist() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    const snapshot = state.status === "running"
+      ? { ...state, remainingMs: remaining(state, Date.now()) }
+      : state;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
   } catch {
     /* Private mode or a full disk. The timer still runs in memory. */
   }
@@ -118,6 +123,8 @@ function armPulse(taskId) {
   }, 800);
 }
 
+let lastPersistedSecond = 0;
+
 function tick() {
   const now = Date.now();
   const rolled = applyAutoStart(rollDay(state, now), now);
@@ -130,7 +137,14 @@ function tick() {
     commit(result.state);
     return;
   }
-  if (state.status === "running") paintClock();
+  if (state.status === "running") {
+    paintClock();
+    const second = Math.floor(now / 1000);
+    if (second !== lastPersistedSecond) {
+      lastPersistedSecond = second;
+      persist();
+    }
+  }
 }
 
 function paintClock() {
@@ -188,11 +202,11 @@ function render() {
   document.getElementById("len-short").textContent = `${state.settings.shortMin} min`;
   document.getElementById("len-long").textContent = `${state.settings.longMin} min`;
 
-  primaryBtn.textContent = state.status === "running"
+  plateBtn.setAttribute("aria-label", state.status === "running"
     ? "Pause"
     : state.status === "paused"
       ? "Resume"
-      : "Start";
+      : "Start");
   skipBtn.disabled = state.status === "idle";
 
   const message = bannerText(state.banner);
@@ -489,10 +503,25 @@ function formatWhen(timestamp) {
 
 document.addEventListener("pointerdown", unlockAudio, { passive: true });
 
-primaryBtn.addEventListener("click", toggleRun);
+plateBtn.addEventListener("click", toggleRun);
 resetBtn.addEventListener("click", () => {
+  const label = phaseLabel(state.phase).toLowerCase();
+  confirmLead.textContent = `The ${label} clock goes back to the start. This interval is not counted.`;
+  confirmReset.showModal();
+});
+confirmReset.addEventListener("click", (event) => {
+  if (event.target === confirmReset) confirmReset.close();
+});
+confirmReset.addEventListener("close", () => {
+  const confirmed = confirmReset.returnValue === "reset";
+  confirmReset.returnValue = "";
+  if (!confirmed) {
+    resetBtn.focus();
+    return;
+  }
   commit(reset(state, Date.now()));
   announce(`${phaseLabel(state.phase)} reset`);
+  plateBtn.focus();
 });
 skipBtn.addEventListener("click", () => {
   const step = skip(state, Date.now());
@@ -568,11 +597,12 @@ document.addEventListener("keydown", (event) => {
   if (event.metaKey || event.ctrlKey || event.altKey) return;
   const tag = document.activeElement?.tagName;
   const typing = tag === "INPUT" || tag === "TEXTAREA";
-  if (event.key === "Escape" && dialog.open) {
-    dialog.close();
+  if (event.key === "Escape" && (dialog.open || confirmReset.open)) {
+    if (confirmReset.open) confirmReset.close();
+    else dialog.close();
     return;
   }
-  if (typing || dialog.open) return;
+  if (typing || dialog.open || confirmReset.open) return;
   if (event.key === " " && tag !== "BUTTON") {
     event.preventDefault();
     toggleRun();
@@ -598,7 +628,10 @@ window.addEventListener("storage", (event) => {
 
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") tick();
+  else persist();
 });
+
+window.addEventListener("pagehide", persist);
 
 ringEl.classList.add("is-instant");
 render();

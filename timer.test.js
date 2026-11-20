@@ -273,6 +273,34 @@ test("a task title keeps markup as text and rejects an empty name", () => {
   assert.equal(addTask(state, " \n\t "), state);
 });
 
+test("a refresh continues a running timer from the same end time", () => {
+  const startedAt = Date.UTC(2026, 10, 20, 16, 0, 0);
+  let state = addTask(freshState(startedAt), "Keep going", startedAt);
+  state = start(state, startedAt);
+  const saved = JSON.stringify(state);
+  const later = startedAt + 90_000;
+  const loaded = hydrate(saved, later);
+  assert.equal(loaded.completed, null);
+  assert.equal(loaded.state.status, "running");
+  assert.equal(loaded.state.phase, "focus");
+  assert.equal(loaded.state.endsAt, state.endsAt);
+  assert.equal(remaining(loaded.state, later), 25 * MINUTE - 90_000);
+  assert.equal(formatClock(remaining(loaded.state, later)), "23:30");
+  assert.equal(loaded.state.tasks[0].title, "Keep going");
+  assert.equal(loaded.state.activeTaskId, state.activeTaskId);
+});
+
+test("a refresh keeps a paused timer frozen", () => {
+  const startedAt = Date.UTC(2026, 10, 20, 16, 0, 0);
+  let state = start(freshState(startedAt), startedAt);
+  state = pause(state, startedAt + 125_000);
+  const loaded = hydrate(JSON.stringify(state), startedAt + 10 * MINUTE);
+  assert.equal(loaded.state.status, "paused");
+  assert.equal(loaded.state.endsAt, null);
+  assert.equal(remaining(loaded.state, startedAt + 10 * MINUTE), 25 * MINUTE - 125_000);
+  assert.equal(formatClock(remaining(loaded.state, startedAt + 10 * MINUTE)), "22:55");
+});
+
 test("reload completes a block that ended while the tab was closed, without chaining another", () => {
   const started = freshState(0);
   const withTask = addTask(started, "Read the spec", 10);
