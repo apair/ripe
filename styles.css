@@ -52,7 +52,62 @@
   --accent: var(--focus);
   --wash: rgba(157, 44, 34, 0.16);
   --shadow: 0 28px 60px rgba(72, 42, 22, 0.13);
+  --surface: rgba(251, 246, 238, 0.72);
+  --surface-strong: rgba(251, 246, 238, 0.78);
+  --field: #fff;
+  --on-ink: #fffaf3;
+  --disabled-bg: #e7dccb;
+  --disabled-ink: #5e5348;
+  --hover: rgba(36, 28, 22, 0.06);
+  --chip: rgba(36, 28, 22, 0.08);
+  --modes: rgba(36, 28, 22, 0.05);
+  --track: rgba(36, 28, 22, 0.1);
+  --backdrop: rgba(36, 28, 22, 0.38);
+  --glow: rgba(90, 62, 36, 0.08);
+  --plate-a: #fffdf9;
+  --plate-b: #f7f0e4;
+  --plate-c: #eadcc8;
+  --plate-sheen: rgba(255, 255, 255, 0.9);
+  --plate-shade: rgba(120, 78, 42, 0.06);
+  --raised: 0 1px 0 rgba(255, 255, 255, 0.8), 0 8px 18px rgba(72, 42, 22, 0.08);
+  --work-shadow: 0 16px 40px rgba(72, 42, 22, 0.05);
   color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  --bg: #161210;
+  --ink: #f3e7d6;
+  --muted: #cbb8a4;
+  --faint: #a89480;
+  --line: rgba(243, 231, 214, 0.16);
+  --paper: #241c17;
+  --paper-2: #2e241e;
+  --focus: #e07a6c;
+  --short: #7dcaa0;
+  --long: #9eb4e4;
+  --accent: var(--focus);
+  --wash: rgba(224, 122, 108, 0.22);
+  --shadow: 0 28px 60px rgba(0, 0, 0, 0.45);
+  --surface: rgba(36, 28, 23, 0.72);
+  --surface-strong: rgba(36, 28, 23, 0.9);
+  --field: #1c1612;
+  --on-ink: #1c1612;
+  --disabled-bg: #3a312a;
+  --disabled-ink: #8d7d6e;
+  --hover: rgba(243, 231, 214, 0.08);
+  --chip: rgba(243, 231, 214, 0.1);
+  --modes: rgba(243, 231, 214, 0.06);
+  --track: rgba(243, 231, 214, 0.16);
+  --backdrop: rgba(8, 6, 4, 0.62);
+  --glow: rgba(243, 231, 214, 0.05);
+  --plate-a: #3a3028;
+  --plate-b: #2a221c;
+  --plate-c: #1b1612;
+  --plate-sheen: rgba(255, 244, 230, 0.08);
+  --plate-shade: rgba(0, 0, 0, 0.35);
+  --raised: 0 1px 0 rgba(255, 255, 255, 0.05), 0 8px 18px rgba(0, 0, 0, 0.35);
+  --work-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+  color-scheme: dark;
 }
 
 body[data-phase="short"] {
@@ -65,6 +120,14 @@ body[data-phase="long"] {
   --wash: rgba(42, 56, 100, 0.16);
 }
 
+html[data-theme="dark"] body[data-phase="short"] {
+  --wash: rgba(125, 202, 160, 0.18);
+}
+
+html[data-theme="dark"] body[data-phase="long"] {
+  --wash: rgba(158, 180, 228, 0.18);
+}
+
 * { box-sizing: border-box; }
 
 html, body { margin: 0; min-height: 100%; }
@@ -74,7 +137,7 @@ body {
   color: var(--ink);
   background:
     radial-gradient(980px 620px at -8% -10%, var(--wash), transparent 60%),
-    radial-gradient(720px 520px at 110% 110%, rgba(90, 62, 36, 0.08), transparent 55%),
+    radial-gradient(720px 520px at 110% 110%, var(--glow), transparent 55%),
     var(--bg);
   line-height: 1.45;
 }
@@ -88,6 +151,11 @@ body::before {
   background-size: 140px 140px;
   opacity: 0.55;
   mix-blend-mode: multiply;
+}
+
+html[data-theme="dark"] body::before {
+  opacity: 0.22;
+  mix-blend-mode: overlay;
 }
 
 button, input { font: inherit; color: inherit; }
@@ -105,6 +173,8 @@ button:disabled {
 }
 
 ::selection { background: rgba(157, 44, 34, 0.2); }
+
+html[data-theme="dark"] ::selection { background: rgba(224, 122, 108, 0.35); }
 
 .sr-only {
   position: absolute;
@@ -144,6 +214,8 @@ html.desktop-app .top {
 
 .mark { width: 42px; height: 42px; display: block; }
 
+.mark rect { fill: var(--paper); }
+
 .word {
   margin: 0;
   font-family: "Fraunces", Georgia, serif;
@@ -172,7 +244,7 @@ html.desktop-app .top {
   padding: 0.45rem 0.9rem;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: rgba(251, 246, 238, 0.72);
+  background: var(--surface);
   color: var(--muted);
   font-size: 0.95rem;
 }
@@ -184,13 +256,19 @@ html.desktop-app .top {
   place-items: center;
   border: 1px solid var(--line);
   border-radius: 50%;
-  background: rgba(251, 246, 238, 0.72);
+  background: var(--surface);
   color: var(--ink);
 }
 
 .icon-btn:hover { background: var(--paper); }
 
 .icon-btn svg { width: 20px; height: 20px; }
+
+.theme-toggle .icon-sun { display: none; }
+
+html[data-theme="dark"] .theme-toggle .icon-moon { display: none; }
+
+html[data-theme="dark"] .theme-toggle .icon-sun { display: block; }
 
 .stage {
   display: grid;
@@ -226,10 +304,10 @@ html.desktop-app .top {
   font: inherit;
   border-radius: 50%;
   background:
-    radial-gradient(circle at 50% 38%, #fffdf9 0%, #f7f0e4 62%, #eadcc8 100%);
+    radial-gradient(circle at 50% 38%, var(--plate-a) 0%, var(--plate-b) 62%, var(--plate-c) 100%);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.9),
-    inset 0 -18px 30px rgba(120, 78, 42, 0.06),
+    inset 0 1px 0 var(--plate-sheen),
+    inset 0 -18px 30px var(--plate-shade),
     var(--shadow);
 }
 
@@ -243,7 +321,7 @@ html.desktop-app .top {
 
 .ring-track {
   fill: none;
-  stroke: rgba(36, 28, 22, 0.1);
+  stroke: var(--track);
   stroke-width: 5;
 }
 
@@ -301,7 +379,7 @@ html.desktop-app .top {
   margin: 0;
   padding: 0.08rem 0.45rem;
   border-radius: 999px;
-  background: rgba(36, 28, 22, 0.08);
+  background: var(--chip);
   color: var(--muted);
   font-size: 0.75rem;
   letter-spacing: 0.08em;
@@ -366,7 +444,7 @@ html.desktop-app .top {
   width: min(420px, 100%);
   padding: 0.3rem;
   border-radius: 18px;
-  background: rgba(36, 28, 22, 0.05);
+  background: var(--modes);
 }
 
 .mode {
@@ -389,7 +467,7 @@ html.desktop-app .top {
 
 .mode[aria-checked="true"] {
   background: var(--paper);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8), 0 8px 18px rgba(72, 42, 22, 0.08);
+  box-shadow: var(--raised);
 }
 
 .mode[aria-checked="true"] small { color: var(--accent); }
@@ -401,7 +479,7 @@ html.desktop-app .top {
   place-items: center;
   border: 1px solid var(--line);
   border-radius: 50%;
-  background: rgba(251, 246, 238, 0.8);
+  background: var(--surface);
   color: var(--ink);
 }
 
@@ -428,7 +506,7 @@ html.desktop-app .top {
   padding: 0.75rem 1.6rem;
   border: 0;
   background: var(--accent);
-  color: #fffaf3;
+  color: var(--on-ink);
   font-weight: 600;
   letter-spacing: 0.01em;
 }
@@ -445,7 +523,7 @@ html.desktop-app .top {
   color: var(--ink);
 }
 
-.quiet:hover:not(:disabled) { background: rgba(251, 246, 238, 0.7); }
+.quiet:hover:not(:disabled) { background: var(--surface); }
 
 .banner {
   width: min(420px, 100%);
@@ -458,11 +536,11 @@ html.desktop-app .top {
 }
 
 .work {
-  background: rgba(251, 246, 238, 0.78);
+  background: var(--surface-strong);
   border: 1px solid var(--line);
   border-radius: 28px;
   padding: 1.25rem 1.25rem 1rem;
-  box-shadow: 0 16px 40px rgba(72, 42, 22, 0.05);
+  box-shadow: var(--work-shadow);
   max-height: calc(100vh - 9rem);
   overflow: auto;
 }
@@ -504,22 +582,22 @@ html.desktop-app .top {
   min-width: 0;
   border: 1px solid var(--line);
   border-radius: 14px;
-  background: #fff;
+  background: var(--field);
   padding: 0.75rem 0.85rem;
 }
 
 .add-btn {
   border: 0;
   background: var(--ink);
-  color: #fffaf3;
+  color: var(--on-ink);
   padding: 0 1rem;
   font-weight: 600;
 }
 
 .add-btn:disabled {
   opacity: 1;
-  background: #e7dccb;
-  color: #5e5348;
+  background: var(--disabled-bg);
+  color: var(--disabled-ink);
 }
 
 .hint, .empty {
@@ -560,7 +638,7 @@ html.desktop-app .top {
   line-height: 1;
 }
 
-.step:hover:not(:disabled) { background: rgba(36, 28, 22, 0.06); color: var(--ink); }
+.step:hover:not(:disabled) { background: var(--hover); color: var(--ink); }
 
 .step:disabled { opacity: 0.35; }
 
@@ -625,7 +703,7 @@ html.desktop-app .top {
   line-height: 1;
 }
 
-.remove:hover { background: rgba(36, 28, 22, 0.06); color: var(--ink); }
+.remove:hover { background: var(--hover); color: var(--ink); }
 
 .history li {
   display: grid;
@@ -672,12 +750,13 @@ html.desktop-app .top {
 dialog {
   border: 0;
   padding: 0;
+  color: var(--ink);
   background: transparent;
   width: min(540px, calc(100vw - 1.5rem));
 }
 
 dialog::backdrop {
-  background: rgba(36, 28, 22, 0.38);
+  background: var(--backdrop);
 }
 
 .sheet {
@@ -720,7 +799,7 @@ dialog::backdrop {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: #fff;
+  background: var(--field);
   padding: 0.65rem 0.7rem;
   font-variant-numeric: tabular-nums;
 }
@@ -772,7 +851,7 @@ dialog::backdrop {
 .done-btn {
   border: 0;
   background: var(--ink);
-  color: #fffaf3;
+  color: var(--on-ink);
   font-weight: 600;
 }
 

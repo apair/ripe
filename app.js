@@ -29,6 +29,7 @@ import {
 } from "./timer.js";
 
 const STORAGE_KEY = "ripe.timer.v1";
+const THEME_KEY = "ripe.theme";
 const RING_RADIUS = 52;
 const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
 
@@ -59,6 +60,8 @@ const ringEl = document.getElementById("ring");
 const liveEl = document.getElementById("live");
 const dialog = document.getElementById("settings");
 const openSettingsBtn = document.getElementById("open-settings");
+const themeBtn = document.getElementById("theme-toggle");
+const themeMeta = document.querySelector('meta[name="theme-color"]');
 const classicBtn = document.getElementById("classic");
 const notifyNote = document.getElementById("notify-note");
 
@@ -556,6 +559,49 @@ taskInput.addEventListener("input", () => {
 tasksEl.addEventListener("click", onTaskClick);
 clearBtn.addEventListener("click", () => commit(clearFinished(state)));
 
+function currentTheme() {
+  return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+}
+
+function applyTheme(theme) {
+  const next = theme === "dark" ? "dark" : "light";
+  const dark = next === "dark";
+  document.documentElement.dataset.theme = next;
+  if (themeMeta) themeMeta.setAttribute("content", dark ? "#161210" : "#efe4d4");
+  if (themeBtn) {
+    themeBtn.setAttribute("aria-pressed", dark ? "true" : "false");
+    themeBtn.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
+  }
+}
+
+function rememberTheme(theme) {
+  try {
+    localStorage.setItem(THEME_KEY, theme);
+  } catch {
+    /* The toggle still changes this page when storage is blocked. */
+  }
+}
+
+applyTheme(currentTheme());
+
+themeBtn.addEventListener("click", () => {
+  const next = currentTheme() === "dark" ? "light" : "dark";
+  applyTheme(next);
+  rememberTheme(next);
+});
+
+const themeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+themeQuery.addEventListener("change", (event) => {
+  let saved = null;
+  try {
+    saved = localStorage.getItem(THEME_KEY);
+  } catch {
+    saved = null;
+  }
+  if (saved === "light" || saved === "dark") return;
+  applyTheme(event.matches ? "dark" : "light");
+});
+
 openSettingsBtn.addEventListener("click", () => {
   syncSettingsForm();
   notifyNote.hidden = true;
@@ -620,6 +666,10 @@ document.addEventListener("keydown", (event) => {
 });
 
 window.addEventListener("storage", (event) => {
+  if (event.key === THEME_KEY) {
+    applyTheme(event.newValue === "dark" ? "dark" : "light");
+    return;
+  }
   if (event.key !== STORAGE_KEY) return;
   const loaded = hydrate(event.newValue, Date.now());
   state = loaded.state;
