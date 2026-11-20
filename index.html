@@ -30,18 +30,22 @@
         </div>
       </div>
       <p class="today" id="today">No focus yet today</p>
+      <div class="top-actions">
+      <button class="text-btn" id="reset" type="button">Reset</button>
       <button class="icon-btn" id="open-settings" type="button" aria-label="Settings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
           <circle cx="12" cy="12" r="3"/>
           <path d="M12 3.5v2.2M12 18.3v2.2M3.5 12h2.2M18.3 12h2.2M5.8 5.8l1.6 1.6M16.6 16.6l1.6 1.6M18.2 5.8l-1.6 1.6M7.4 16.6l-1.6 1.6" stroke-linecap="round"/>
         </svg>
       </button>
+      </div>
     </header>
 
     <main class="stage">
       <section class="instrument" aria-label="Timer">
         <h1 class="sr-only">Ripe, a pomodoro timer</h1>
-        <div class="plate">
+        <div class="timer-row">
+        <button class="plate" id="plate" type="button" aria-label="Start">
           <svg class="ring" id="ring" viewBox="0 0 120 120" aria-hidden="true">
             <circle class="ring-track" cx="60" cy="60" r="52"/>
             <circle class="ring-progress" id="progress" cx="60" cy="60" r="52" transform="rotate(-90 60 60)"/>
@@ -54,6 +58,13 @@
             </div>
             <div class="pips" id="pips" aria-hidden="true"></div>
           </div>
+        </button>
+        <button class="next" id="skip" type="button" aria-label="Next interval" disabled>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="currentColor" d="M4.5 5.2v13.6L15.2 12 4.5 5.2z"/>
+            <path fill="currentColor" d="M17 5.2h2.4v13.6H17z"/>
+          </svg>
+        </button>
         </div>
         <p class="round-hint" id="round-hint">#1</p>
         <p class="cue" id="cue">Time to focus!</p>
@@ -70,11 +81,6 @@
             <span>Long break</span>
             <small id="len-long">15 min</small>
           </button>
-        </div>
-        <div class="controls">
-          <button class="primary" id="primary" type="button">Start</button>
-          <button class="quiet" id="reset" type="button">Reset</button>
-          <button class="quiet" id="skip" type="button" disabled>Skip</button>
         </div>
         <p class="banner" id="banner" hidden></p>
       </section>
@@ -101,7 +107,7 @@
       </section>
     </main>
 
-    <p class="foot">Space starts or pauses · N skips · R resets · 1 2 3 switches the interval</p>
+    <p class="foot">Click the timer or press Space to start or pause · N skips · R resets · 1 2 3 switches the interval</p>
     <p class="sr-only" id="live" aria-live="polite"></p>
   </div>
 
@@ -140,7 +146,47 @@
     </form>
   </dialog>
 
+  <dialog id="confirm-reset" aria-labelledby="confirm-reset-title">
+    <form class="sheet" method="dialog">
+      <h2 id="confirm-reset-title">Reset this interval?</h2>
+      <p class="sheet-lead" id="confirm-reset-lead">The clock goes back to the start. This interval is not counted.</p>
+      <div class="sheet-actions">
+        <button class="ghost-btn" value="cancel" type="submit" autofocus>Cancel</button>
+        <button class="done-btn" id="confirm-reset-yes" value="reset" type="submit">Reset</button>
+      </div>
+    </form>
+  </dialog>
+
   <noscript><p class="app">Ripe needs JavaScript to run the timer.</p></noscript>
+  <script>
+    try {
+      const saved = JSON.parse(localStorage.getItem("ripe.timer.v1") || "null");
+      if (saved && typeof saved === "object") {
+        let ms = Number(saved.remainingMs);
+        if (saved.status === "running" && Number.isFinite(Number(saved.endsAt))) {
+          ms = Math.max(0, Number(saved.endsAt) - Date.now());
+        }
+        if (Number.isFinite(ms) && ms >= 0) {
+          const total = Math.ceil(ms / 1000);
+          const clock = String(Math.floor(total / 60)).padStart(2, "0") + ":" + String(total % 60).padStart(2, "0");
+          const time = document.getElementById("time");
+          if (time) time.textContent = clock;
+          const phase = saved.phase === "short" ? "Short break" : saved.phase === "long" ? "Long break" : "Focus";
+          const phaseEl = document.getElementById("phase-label");
+          if (phaseEl) phaseEl.textContent = phase;
+          if (saved.phase === "short" || saved.phase === "long") document.body.dataset.phase = saved.phase;
+          const plate = document.getElementById("plate");
+          if (plate) {
+            plate.setAttribute("aria-label", saved.status === "running" ? "Pause" : saved.status === "paused" ? "Resume" : "Start");
+          }
+          const chip = document.getElementById("status-chip");
+          if (chip) chip.hidden = saved.status !== "paused";
+        }
+      }
+    } catch (error) {
+      /* A bad cache just leaves the default clock. The module still starts clean. */
+    }
+  </script>
   <script type="module" src="app.js"></script>
 </body>
 </html>
