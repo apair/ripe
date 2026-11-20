@@ -31,13 +31,13 @@
       </div>
       <p class="today" id="today">No focus yet today</p>
       <div class="top-actions">
-      <button class="text-btn" id="reset" type="button">Reset</button>
-      <button class="icon-btn" id="open-settings" type="button" aria-label="Settings">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-          <circle cx="12" cy="12" r="3"/>
-          <path d="M12 3.5v2.2M12 18.3v2.2M3.5 12h2.2M18.3 12h2.2M5.8 5.8l1.6 1.6M16.6 16.6l1.6 1.6M18.2 5.8l-1.6 1.6M7.4 16.6l-1.6 1.6" stroke-linecap="round"/>
-        </svg>
-      </button>
+        <button class="text-btn" id="reset" type="button">Reset</button>
+        <button class="icon-btn" id="open-settings" type="button" aria-label="Settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M12 3.5v2.2M12 18.3v2.2M3.5 12h2.2M18.3 12h2.2M5.8 5.8l1.6 1.6M16.6 16.6l1.6 1.6M18.2 5.8l-1.6 1.6M7.4 16.6l-1.6 1.6" stroke-linecap="round"/>
+          </svg>
+        </button>
       </div>
     </header>
 
@@ -45,26 +45,26 @@
       <section class="instrument" aria-label="Timer">
         <h1 class="sr-only">Ripe, a pomodoro timer</h1>
         <div class="timer-row">
-        <button class="plate" id="plate" type="button" aria-label="Start">
-          <svg class="ring" id="ring" viewBox="0 0 120 120" aria-hidden="true">
-            <circle class="ring-track" cx="60" cy="60" r="52"/>
-            <circle class="ring-progress" id="progress" cx="60" cy="60" r="52" transform="rotate(-90 60 60)"/>
-          </svg>
-          <div class="face">
-            <p class="time" id="time" role="timer" aria-label="25 minutes 0 seconds remaining, Focus">25:00</p>
-            <div class="phase-row">
-              <p class="phase" id="phase-label">Focus</p>
-              <p class="chip" id="status-chip" hidden>Paused</p>
+          <button class="plate" id="plate" type="button" aria-label="Start">
+            <svg class="ring" id="ring" viewBox="0 0 120 120" aria-hidden="true">
+              <circle class="ring-track" cx="60" cy="60" r="52"/>
+              <circle class="ring-progress" id="progress" cx="60" cy="60" r="52" transform="rotate(-90 60 60)"/>
+            </svg>
+            <div class="face">
+              <p class="time" id="time" role="timer" aria-label="25 minutes 0 seconds remaining, Focus">25:00</p>
+              <div class="phase-row">
+                <p class="phase" id="phase-label">Focus</p>
+                <p class="chip" id="status-chip" hidden>Paused</p>
+              </div>
+              <div class="pips" id="pips" aria-hidden="true"></div>
             </div>
-            <div class="pips" id="pips" aria-hidden="true"></div>
-          </div>
-        </button>
-        <button class="next" id="skip" type="button" aria-label="Next interval" disabled>
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path fill="currentColor" d="M4.5 5.2v13.6L15.2 12 4.5 5.2z"/>
-            <path fill="currentColor" d="M17 5.2h2.4v13.6H17z"/>
-          </svg>
-        </button>
+          </button>
+          <button class="next" id="skip" type="button" aria-label="Next interval" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="currentColor" d="M4.5 5.2v13.6L15.2 12 4.5 5.2z"/>
+              <path fill="currentColor" d="M17 5.2h2.4v13.6H17z"/>
+            </svg>
+          </button>
         </div>
         <p class="round-hint" id="round-hint">#1</p>
         <p class="cue" id="cue">Time to focus!</p>

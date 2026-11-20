@@ -219,6 +219,7 @@ html.desktop-app .top {
   position: relative;
   width: 100%;
   aspect-ratio: 1;
+  appearance: none;
   border: 0;
   padding: 0;
   color: inherit;
