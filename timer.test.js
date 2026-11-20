@@ -2,10 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   addTask,
+  applyAutoStart,
   bannerText,
   CLASSIC_TIMING,
   clearFinished,
   completeIfDue,
+  cueText,
   durationMs,
   formatClock,
   freshState,
@@ -16,9 +18,11 @@ import {
   reset,
   roundLabel,
   selectTask,
+  setEstimate,
   skip,
   start,
   switchPhase,
+  taskSummary,
   todayLabel,
   toggleTask,
   updateSettings,
@@ -33,7 +37,10 @@ test("a new timer is an idle 25 minute focus block", () => {
   assert.equal(state.status, "idle");
   assert.equal(state.remainingMs, 25 * MINUTE);
   assert.equal(formatClock(state.remainingMs), "25:00");
-  assert.equal(roundLabel(state), "Round 1 of 4");
+  assert.equal(roundLabel(state), "#1");
+  assert.equal(cueText(state), "Time to focus!");
+  assert.equal(state.pomodorosToday, 0);
+  assert.equal(state.settings.autoSwitchTasks, true);
   assert.equal(todayLabel(state), "No focus yet today");
 });
 
@@ -64,9 +71,12 @@ test("finishing a focus block opens a short break and counts it", () => {
   assert.equal(state.status, "idle");
   assert.equal(state.focusDoneToday, 1);
   assert.equal(state.focusMsToday, 25 * MINUTE);
-  assert.equal(state.completedFocusInCycle, 1);
+  assert.equal(state.pomodorosToday, 1);
+  assert.equal(roundLabel(state), "#1");
+  assert.equal(cueText(state), "Draft the outline");
   assert.equal(state.tasks.find((task) => task.id === taskId).pomodoros, 1);
-  assert.equal(bannerText(state.banner), "Focus block finished. Short break is ready.");
+  assert.equal(state.tasks.find((task) => task.id === taskId).estimate, 1);
+  assert.equal(bannerText(state.banner), "Time to take a short break!");
   assert.equal(todayLabel(state), "1 focus block · 25m today");
   assert.equal(state.history[0].taskTitle, "Draft the outline");
 });
@@ -83,23 +93,28 @@ test("four focus blocks are followed by a long break, then the cycle restarts", 
     assert.equal(state.focusDoneToday, round);
     if (round < 4) {
       assert.equal(state.phase, "short");
-      assert.equal(state.completedFocusInCycle, round);
+      assert.equal(state.pomodorosToday, round);
+      assert.equal(roundLabel(state), `#${round}`);
       state = start(state, now);
       now = state.endsAt;
       state = completeIfDue(state, now).state;
       assert.equal(state.phase, "focus");
+      assert.equal(roundLabel(state), `#${round + 1}`);
       assert.equal(state.focusDoneToday, round);
     } else {
       assert.equal(state.phase, "long");
-      assert.equal(state.completedFocusInCycle, 0);
-      assert.equal(bannerText(state.banner), "Cycle complete. Take a long break.");
+      assert.equal(state.pomodorosToday, 4);
+      assert.equal(roundLabel(state), "#4");
+      assert.equal(bannerText(state.banner), "Time to take a long break!");
     }
   }
   state = start(state, now);
   now = state.endsAt;
   state = completeIfDue(state, now).state;
   assert.equal(state.phase, "focus");
-  assert.equal(roundLabel(state), "Round 1 of 4");
+  assert.equal(roundLabel(state), "#5");
+  assert.equal(cueText(state), "Time to focus!");
+  assert.equal(state.pomodorosToday, 4);
   assert.equal(state.focusDoneToday, 4);
 });
 
@@ -114,38 +129,53 @@ test("a break does not increment the focus count", () => {
   assert.equal(step.state.history.length, 1);
 });
 
-test("skip abandons the current block without counting it", () => {
+test("skip finishes the running interval and counts a focus block", () => {
   let now = 0;
   let state = start(freshState(now), now);
   now += 10_000;
-  state = skip(state, now);
+  const skipped = skip(state, now);
+  state = skipped.state;
+  assert.equal(skipped.completed.phase, "focus");
+  assert.equal(skipped.completed.ms, 25 * MINUTE);
   assert.equal(state.phase, "short");
   assert.equal(state.status, "idle");
-  assert.equal(state.focusDoneToday, 0);
-  assert.equal(state.completedFocusInCycle, 0);
-  assert.equal(state.history.length, 0);
+  assert.equal(state.focusDoneToday, 1);
+  assert.equal(state.pomodorosToday, 1);
+  assert.equal(state.history.length, 1);
   assert.equal(state.remainingMs, 5 * MINUTE);
   state = start(state, now);
-  state = skip(state, now + 1000);
+  state = skip(state, now + 1000).state;
   assert.equal(state.phase, "focus");
-  assert.equal(skip(freshState(now), now).status, "idle");
+  assert.equal(state.pomodorosToday, 1);
+  assert.equal(roundLabel(state), "#2");
+  assert.equal(skip(freshState(now), now).state.status, "idle");
+  assert.equal(skip(freshState(now), now).completed, null);
 });
 
-test("auto-start begins the next block only when the end is observed promptly", () => {
+test("auto-start waits two seconds and only arms when the end is observed promptly", () => {
   let now = 0;
   let state = updateSettings(freshState(now), { autoStartBreaks: true, autoStartFocus: true }, now);
   state = start(state, now);
   const live = completeIfDue(state, state.endsAt);
   assert.equal(live.state.phase, "short");
-  assert.equal(live.state.status, "running");
-  assert.equal(live.state.endsAt - state.endsAt, 5 * MINUTE);
-  assert.match(bannerText(live.state.banner), /Short break started/);
+  assert.equal(live.state.status, "idle");
+  assert.equal(live.state.autoStartAt, state.endsAt + 2000);
+  assert.equal(bannerText(live.state.banner), "Time to take a short break!");
+  const waiting = applyAutoStart(live.state, state.endsAt + 1000);
+  assert.equal(waiting.status, "idle");
+  const started = applyAutoStart(live.state, state.endsAt + 2000);
+  assert.equal(started.status, "running");
+  assert.equal(started.endsAt - state.endsAt, 5 * MINUTE + 2000);
+  const missed = applyAutoStart(live.state, state.endsAt + 5000);
+  assert.equal(missed.status, "idle");
+  assert.equal(missed.autoStartAt, null);
 
   state = updateSettings(freshState(0), { autoStartBreaks: true }, 0);
   state = start(state, 0);
   const late = completeIfDue(state, state.endsAt + 60_000);
   assert.equal(late.state.status, "idle");
   assert.equal(late.state.phase, "short");
+  assert.equal(late.state.autoStartAt, null);
   assert.equal(late.completed.endedAt, state.endsAt);
 });
 
@@ -172,29 +202,33 @@ test("settings are clamped and the classic rhythm restores the defaults", () => 
   }, 0);
   assert.equal(state.settings.focusMin, 1);
   assert.equal(state.settings.shortMin, 60);
-  assert.equal(state.settings.longMin, 1);
-  assert.equal(state.settings.roundsUntilLong, 2);
+  assert.equal(state.settings.longMin, 0);
+  assert.equal(state.settings.roundsUntilLong, 1);
   const classic = updateSettings(state, CLASSIC_TIMING, 0);
   assert.equal(classic.settings.focusMin, 25);
   assert.equal(classic.remainingMs, 25 * MINUTE);
 });
 
-test("shrinking the cycle length never leaves the counter past the last round", () => {
+test("a zero-length short break is skipped and the daily count keeps climbing", () => {
+  let now = 0;
+  let state = updateSettings(freshState(now), { shortMin: 0, roundsUntilLong: 4 }, now);
+  state = start(state, now);
+  state = completeIfDue(state, state.endsAt).state;
+  assert.equal(state.phase, "focus");
+  assert.equal(state.pomodorosToday, 1);
+  assert.equal(roundLabel(state), "#2");
+  assert.equal(bannerText(state.banner), "Time to focus!");
+});
+
+test("the long break follows the interval even after the count passes four", () => {
   let now = 0;
   let state = freshState(now);
-  for (let i = 0; i < 3; i += 1) {
-    state = start(state, now);
-    now = state.endsAt;
-    state = completeIfDue(state, now).state;
-    if (state.phase !== "focus") {
-      state = start(state, now);
-      now = state.endsAt;
-      state = completeIfDue(state, now).state;
-    }
-  }
-  assert.equal(state.completedFocusInCycle, 3);
-  state = updateSettings(state, { roundsUntilLong: 2 }, now);
-  assert.equal(state.completedFocusInCycle, 1);
+  state = { ...state, pomodorosToday: 7, phase: "focus", remainingMs: 25 * MINUTE };
+  state = start(state, now);
+  state = completeIfDue(state, state.endsAt).state;
+  assert.equal(state.pomodorosToday, 8);
+  assert.equal(state.phase, "long");
+  assert.equal(roundLabel(state), "#8");
 });
 
 test("a new day clears today's totals and keeps the task list", () => {
@@ -206,6 +240,8 @@ test("a new day clears today's totals and keeps the task list", () => {
   const tuesday = new Date(2026, 10, 17, 0, 10, 0).getTime();
   state = start(switchPhase(state, "focus", tuesday), tuesday);
   assert.equal(state.focusDoneToday, 0);
+  assert.equal(state.pomodorosToday, 0);
+  assert.equal(roundLabel(state), "#1");
   assert.equal(state.tasks.length, 1);
   assert.equal(state.tasks[0].pomodoros, 1);
 });
@@ -220,8 +256,10 @@ test("tasks can be selected, finished, and cleared", () => {
   assert.equal(state.activeTaskId, second);
   state = selectTask(state, first);
   assert.equal(state.activeTaskId, first);
+  state = updateSettings(state, { autoSwitchTasks: false }, 0);
   state = toggleTask(state, first);
   assert.equal(state.tasks.find((task) => task.id === first).done, true);
+  assert.equal(state.activeTaskId, first);
   state = clearFinished(state);
   assert.equal(state.tasks.length, 1);
   assert.equal(state.activeTaskId, null);
@@ -274,5 +312,43 @@ test("switching phase drops the current block and does not count it", () => {
   assert.equal(state.status, "idle");
   assert.equal(state.remainingMs, 15 * MINUTE);
   assert.equal(state.focusDoneToday, 0);
-  assert.equal(roundLabel(state), "Long break · cycle complete");
+  assert.equal(state.pomodorosToday, 0);
+  assert.equal(roundLabel(state), "#1");
+  assert.equal(cueText(state), "Time for a break!");
+  state = start(state, now + 5000);
+  state = switchPhase(state, "long", now + 8000);
+  assert.equal(state.status, "idle");
+  assert.equal(state.remainingMs, 15 * MINUTE);
+  assert.equal(state.pomodorosToday, 0);
+});
+
+test("finishing the estimate checks the task and selects the next one", () => {
+  let now = 0;
+  let state = updateSettings(freshState(now), { autoCheckTasks: true, autoSwitchTasks: true }, now);
+  state = addTask(state, "First", 1);
+  const first = state.activeTaskId;
+  state = addTask(state, "Second", 2);
+  state = selectTask(state, first);
+  state = setEstimate(state, first, 1);
+  state = start(state, now);
+  state = completeIfDue(state, state.endsAt).state;
+  const finished = state.tasks.find((task) => task.id === first);
+  assert.equal(finished.done, true);
+  assert.equal(finished.pomodoros, 1);
+  assert.equal(state.tasks.at(-1).id, first);
+  assert.equal(state.activeTaskId, state.tasks.find((task) => task.title === "Second").id);
+});
+
+test("the finish estimate counts remaining pomodoros and the breaks between them", () => {
+  const now = Date.UTC(2026, 10, 16, 16, 0, 0);
+  let state = addTask(freshState(now), "One", now);
+  state = addTask(state, "Two", now + 1);
+  state = setEstimate(state, state.tasks.find((task) => task.title === "One").id, 1);
+  state = setEstimate(state, state.tasks.find((task) => task.title === "Two").id, 1);
+  const summary = taskSummary(state, now);
+  assert.equal(summary.act, 0);
+  assert.equal(summary.est, 2);
+  assert.equal(summary.remainingMs, 55 * MINUTE);
+  assert.equal(summary.hours, 0.9);
+  assert.equal(summary.finishAt, now + 55 * MINUTE);
 });

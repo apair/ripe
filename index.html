@@ -52,11 +52,11 @@
               <p class="phase" id="phase-label">Focus</p>
               <p class="chip" id="status-chip" hidden>Paused</p>
             </div>
-            <p class="active-task" id="active-task" hidden></p>
             <div class="pips" id="pips" aria-hidden="true"></div>
           </div>
         </div>
-        <p class="round-hint" id="round-hint">Round 1 of 4</p>
+        <p class="round-hint" id="round-hint">#1</p>
+        <p class="cue" id="cue">Time to focus!</p>
         <div class="modes" role="radiogroup" aria-label="Interval">
           <button class="mode" type="button" role="radio" data-phase="focus" aria-checked="true">
             <span>Focus</span>
@@ -91,6 +91,7 @@
         </form>
         <p class="empty" id="task-empty">Nothing queued. Add what this focus block is for.</p>
         <ul class="tasks" id="tasks"></ul>
+        <p class="summary" id="task-summary" hidden></p>
 
         <div class="history-head">
           <h2 id="history-heading">Finished today</h2>
@@ -107,29 +108,31 @@
   <dialog id="settings" aria-labelledby="settings-title">
     <form class="sheet" id="settings-form" method="dialog">
       <h2 id="settings-title">Timing</h2>
-      <p class="sheet-lead">Focus, then a short break. After a set of focus blocks, take a long break.</p>
+      <p class="sheet-lead">A pomodoro, then a short break. Every few pomodoros, take a long break. The number under the timer is today’s count, and it keeps going after the long break.</p>
       <div class="fields">
         <label>Focus length
           <input id="set-focus" type="number" min="1" max="120" step="1" inputmode="numeric" value="25">
         </label>
         <label>Short break
-          <input id="set-short" type="number" min="1" max="60" step="1" inputmode="numeric" value="5">
+          <input id="set-short" type="number" min="0" max="60" step="1" inputmode="numeric" value="5">
         </label>
         <label>Long break
-          <input id="set-long" type="number" min="1" max="60" step="1" inputmode="numeric" value="15">
+          <input id="set-long" type="number" min="0" max="60" step="1" inputmode="numeric" value="15">
         </label>
-        <label>Focus blocks per cycle
-          <input id="set-rounds" type="number" min="2" max="8" step="1" inputmode="numeric" value="4">
+        <label>Long break interval
+          <input id="set-rounds" type="number" min="1" max="12" step="1" inputmode="numeric" value="4">
         </label>
       </div>
       <div class="toggles">
-        <label class="switch"><input id="set-auto-breaks" type="checkbox"> Start breaks automatically</label>
-        <label class="switch"><input id="set-auto-focus" type="checkbox"> Start the next focus block automatically</label>
+        <label class="switch"><input id="set-auto-breaks" type="checkbox"> Auto start breaks</label>
+        <label class="switch"><input id="set-auto-focus" type="checkbox"> Auto start pomodoros</label>
+        <label class="switch"><input id="set-auto-check" type="checkbox"> Auto check tasks</label>
+        <label class="switch"><input id="set-auto-switch" type="checkbox" checked> Auto switch tasks</label>
         <label class="switch"><input id="set-sound" type="checkbox" checked> Play a chime</label>
         <label class="switch"><input id="set-notify" type="checkbox"> Desktop notification</label>
       </div>
       <p class="note" id="notify-note" hidden>Notifications are blocked in the browser settings.</p>
-      <p class="apply-note">A block that is already running keeps its current time. Reset it to use the new length. The classic rhythm is 25, 5, and 15.</p>
+      <p class="apply-note">A block that is already running keeps its current time. Reset it to use the new length. Set a break to 0 to skip it. The classic rhythm is 25, 5, and 15, with a long break every 4 pomodoros.</p>
       <div class="sheet-actions">
         <button class="ghost-btn" id="classic" type="button">Use classic timing</button>
         <button class="done-btn" type="submit">Done</button>
