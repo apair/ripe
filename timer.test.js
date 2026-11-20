@@ -14,6 +14,7 @@ import {
   hydrate,
   pause,
   remaining,
+  ringFraction,
   removeTask,
   reset,
   roundLabel,
@@ -365,6 +366,15 @@ test("finishing the estimate checks the task and selects the next one", () => {
   assert.equal(finished.pomodoros, 1);
   assert.equal(state.tasks.at(-1).id, first);
   assert.equal(state.activeTaskId, state.tasks.find((task) => task.title === "Second").id);
+});
+
+test("the ring fraction is the part of the interval still left", () => {
+  assert.equal(ringFraction(25 * MINUTE, 25 * MINUTE), 1);
+  assert.equal(ringFraction(12.5 * MINUTE, 25 * MINUTE), 0.5);
+  assert.equal(ringFraction(0, 25 * MINUTE), 0);
+  assert.equal(ringFraction(-10, 25 * MINUTE), 0);
+  assert.equal(ringFraction(30 * MINUTE, 25 * MINUTE), 1);
+  assert.equal(ringFraction(10, 0), 0);
 });
 
 test("the finish estimate counts remaining pomodoros and the breaks between them", () => {

@@ -13,6 +13,7 @@ import {
   phaseLabel,
   pipMarks,
   remaining,
+  ringFraction,
   removeTask,
   reset,
   rollDay,
@@ -56,6 +57,18 @@ const taskForm = document.getElementById("task-form");
 const taskInput = document.getElementById("task-input");
 const addBtn = document.getElementById("add-task");
 const progressEl = document.getElementById("progress");
+let faviconLink = document.querySelector('link[rel="icon"]');
+const faviconCanvas = document.createElement("canvas");
+const FAVICON_SIZE = 64;
+faviconCanvas.width = FAVICON_SIZE;
+faviconCanvas.height = FAVICON_SIZE;
+let faviconKey = "";
+
+const FAVICON_COLOR = {
+  focus: "#9d2c22",
+  short: "#1c5a36",
+  long: "#2a3864",
+};
 const ringEl = document.getElementById("ring");
 const liveEl = document.getElementById("live");
 const dialog = document.getElementById("settings");
@@ -163,6 +176,7 @@ function paintClock() {
   const spoken = spokenRemaining(left);
   timeEl.setAttribute("aria-label", `${spoken} remaining, ${label}`);
   paintRing(left, total);
+  paintFavicon(left, total);
   if (state.status === "running" || state.status === "paused") {
     document.title = `${clock} · ${label} — Ripe`;
   } else {
@@ -180,10 +194,57 @@ function spokenRemaining(ms) {
 }
 
 function paintRing(left, total) {
-  const ratio = total <= 0 ? 0 : Math.min(1, Math.max(0, left / total));
+  const ratio = ringFraction(left, total);
   progressEl.style.strokeDasharray = `${RING_LENGTH}`;
   progressEl.style.strokeDashoffset = `${RING_LENGTH * (1 - ratio)}`;
   progressEl.style.strokeLinecap = ratio > 0.985 || ratio < 0.015 ? "butt" : "round";
+}
+
+function paintFavicon(left, total) {
+  const fraction = ringFraction(left, total);
+  const marks = Math.round(fraction * 100);
+  const key = `${state.phase}:${marks}`;
+  if (key === faviconKey) return;
+  faviconKey = key;
+
+  const ctx = faviconCanvas.getContext("2d");
+  const size = FAVICON_SIZE;
+  ctx.clearRect(0, 0, size, size);
+  ctx.fillStyle = "#fbf6ee";
+  ctx.beginPath();
+  ctx.moveTo(16, 0);
+  ctx.arcTo(size, 0, size, size, 16);
+  ctx.arcTo(size, size, 0, size, 16);
+  ctx.arcTo(0, size, 0, 0, 16);
+  ctx.arcTo(0, 0, size, 0, 16);
+  ctx.closePath();
+  ctx.fill();
+
+  const center = size / 2;
+  const radius = 22;
+  ctx.lineWidth = 8;
+  ctx.strokeStyle = "rgba(36, 28, 22, 0.14)";
+  ctx.lineCap = "butt";
+  ctx.beginPath();
+  ctx.arc(center, center, radius, 0, Math.PI * 2);
+  ctx.stroke();
+
+  if (fraction > 0) {
+    ctx.strokeStyle = FAVICON_COLOR[state.phase] || FAVICON_COLOR.focus;
+    ctx.lineCap = fraction > 0.985 || fraction < 0.015 ? "butt" : "round";
+    const start = -Math.PI / 2;
+    const end = start + fraction * Math.PI * 2;
+    ctx.beginPath();
+    ctx.arc(center, center, radius, start, end);
+    ctx.stroke();
+  }
+
+  const icon = document.createElement("link");
+  icon.rel = "icon";
+  icon.type = "image/png";
+  icon.href = faviconCanvas.toDataURL("image/png");
+  faviconLink.replaceWith(icon);
+  faviconLink = icon;
 }
 
 function render() {

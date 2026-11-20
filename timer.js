@@ -98,6 +98,12 @@ export function remaining(state, now) {
   return Math.max(0, state.remainingMs);
 }
 
+export function ringFraction(left, total) {
+  if (!Number.isFinite(total) || total <= 0) return 0;
+  const safe = Number.isFinite(left) ? left : 0;
+  return Math.min(1, Math.max(0, safe / total));
+}
+
 export function formatClock(ms) {
   const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
   const minutes = Math.floor(totalSeconds / 60);
