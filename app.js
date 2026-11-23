@@ -1,7 +1,7 @@
 import {
   addTask,
   bannerText,
-  CLASSIC_TIMING,
+  DEFAULT_SETTINGS,
   applyAutoStart,
   clearFinished,
   completeIfDue,
@@ -79,7 +79,6 @@ const dialog = document.getElementById("settings");
 const openSettingsBtn = document.getElementById("open-settings");
 const themeBtn = document.getElementById("theme-toggle");
 const themeMeta = document.querySelector('meta[name="theme-color"]');
-const classicBtn = document.getElementById("classic");
 const notifyNote = document.getElementById("notify-note");
 
 const modeButtons = [...document.querySelectorAll(".mode")];
@@ -455,10 +454,10 @@ function renderHistory() {
 }
 
 function syncSettingsForm() {
-  setNumber(setFocus, state.settings.focusMin);
-  setNumber(setShort, state.settings.shortMin);
-  setNumber(setLong, state.settings.longMin);
-  setNumber(setRounds, state.settings.roundsUntilLong);
+  setNumber(setFocus, state.settings.focusMin, DEFAULT_SETTINGS.focusMin);
+  setNumber(setShort, state.settings.shortMin, DEFAULT_SETTINGS.shortMin);
+  setNumber(setLong, state.settings.longMin, DEFAULT_SETTINGS.longMin);
+  setNumber(setRounds, state.settings.roundsUntilLong, DEFAULT_SETTINGS.roundsUntilLong);
   setAutoBreaks.checked = state.settings.autoStartBreaks;
   setAutoFocus.checked = state.settings.autoStartFocus;
   setAutoCheck.checked = state.settings.autoCheckTasks;
@@ -467,17 +466,21 @@ function syncSettingsForm() {
   setNotify.checked = state.settings.notify;
 }
 
-function setNumber(input, value) {
+function setNumber(input, value, fallback) {
   if (document.activeElement === input) return;
-  input.value = String(value);
+  input.value = value === fallback ? "" : String(value);
+}
+
+function numberField(input, fallback) {
+  return input.value.trim() === "" ? fallback : input.value;
 }
 
 function readSettingsPatch() {
   return {
-    focusMin: setFocus.value,
-    shortMin: setShort.value,
-    longMin: setLong.value,
-    roundsUntilLong: setRounds.value,
+    focusMin: numberField(setFocus, DEFAULT_SETTINGS.focusMin),
+    shortMin: numberField(setShort, DEFAULT_SETTINGS.shortMin),
+    longMin: numberField(setLong, DEFAULT_SETTINGS.longMin),
+    roundsUntilLong: numberField(setRounds, DEFAULT_SETTINGS.roundsUntilLong),
     autoStartBreaks: setAutoBreaks.checked,
     autoStartFocus: setAutoFocus.checked,
     autoCheckTasks: setAutoCheck.checked,
@@ -737,11 +740,6 @@ setNotify.addEventListener("change", async () => {
     }
   }
   applySettings();
-});
-
-classicBtn.addEventListener("click", () => {
-  commit(updateSettings(state, CLASSIC_TIMING, Date.now()));
-  syncSettingsForm();
 });
 
 alarmBtn.addEventListener("click", () => {
