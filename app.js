@@ -1,6 +1,7 @@
 import {
   addTask,
   bannerText,
+  breakWaiting,
   DEFAULT_SETTINGS,
   applyAutoStart,
   clearFinished,
@@ -50,6 +51,11 @@ const plateBtn = document.getElementById("plate");
 const appRoot = document.getElementById("app-root");
 const alarmEl = document.getElementById("pause-alarm");
 const alarmBtn = document.getElementById("alarm-resume");
+const breakEl = document.getElementById("break-overlay");
+const breakStartBtn = document.getElementById("break-start");
+const breakSkipBtn = document.getElementById("break-skip");
+const breakTitleEl = document.getElementById("break-title");
+const breakCopyEl = document.getElementById("break-copy");
 const resetBtn = document.getElementById("reset");
 const skipBtn = document.getElementById("skip");
 const confirmReset = document.getElementById("confirm-reset");
@@ -106,6 +112,8 @@ let audioCtx = null;
 let lastAnnouncement = "";
 let alarmOpen = false;
 let alarmBlink = null;
+let breakOpen = false;
+let breakBlink = null;
 
 function load() {
   let saved = null;
@@ -173,6 +181,7 @@ function tick() {
     }
   }
   syncAlarm(now);
+  syncBreak(now);
 }
 
 function paintClock() {
@@ -191,6 +200,8 @@ function paintClock() {
   paintFavicon(left, total);
   if (alarmOpen) {
     document.title = alarmBlink ? "Resume focus — Ripe" : `Paused ${clock} · ${label} — Ripe`;
+  } else if (breakOpen) {
+    document.title = breakBlink ? "Break time — Ripe" : `${label} ready — Ripe`;
   } else if (state.status === "running" || state.status === "paused") {
     document.title = `${clock} · ${label} — Ripe`;
   } else {
@@ -305,7 +316,46 @@ function closeAlarm() {
   alarmOpen = false;
   alarmBlink = null;
   alarmEl.hidden = true;
-  appRoot.inert = false;
+  appRoot.inert = breakOpen;
+  if (hadFocus) plateBtn.focus();
+  paintClock();
+}
+
+function syncBreak(now = Date.now()) {
+  if (!breakWaiting(state)) {
+    if (breakOpen) closeBreak();
+    return;
+  }
+  if (!breakOpen) openBreak();
+  const on = Math.floor(now / 500) % 2 === 0;
+  if (on !== breakBlink) {
+    breakBlink = on;
+    paintClock();
+  }
+}
+
+function openBreak() {
+  if (dialog.open) dialog.close();
+  if (confirmReset.open) confirmReset.close();
+  breakOpen = true;
+  breakBlink = null;
+  const minutes = Math.round(durationMs(state.settings, state.phase) / 60000);
+  const span = minutes === 1 ? "1 minute" : `${minutes} minutes`;
+  const kind = state.phase === "long" ? "long" : "short";
+  breakTitleEl.textContent = `Time for a ${kind} break`;
+  breakCopyEl.textContent = `Your focus block is done. Start the ${span} break when you are ready, or skip it to get back to focus.`;
+  breakEl.hidden = false;
+  appRoot.inert = true;
+  breakStartBtn.focus();
+  announce(`${phaseLabel(state.phase)} is ready. Start the break or skip it.`);
+}
+
+function closeBreak() {
+  const hadFocus = breakEl.contains(document.activeElement);
+  breakOpen = false;
+  breakBlink = null;
+  breakEl.hidden = true;
+  appRoot.inert = alarmOpen;
   if (hadFocus) plateBtn.focus();
   paintClock();
 }
@@ -315,6 +365,7 @@ function render() {
   const restore = restoreKey(document.activeElement);
   paintClock();
   syncAlarm();
+  syncBreak();
 
   phaseEl.textContent = phaseLabel(state.phase);
   chipEl.hidden = state.status !== "paused";
@@ -769,6 +820,19 @@ alarmBtn.addEventListener("click", () => {
   if (state.status === "paused") toggleRun();
 });
 
+breakStartBtn.addEventListener("click", () => {
+  if (!breakWaiting(state)) return;
+  unlockAudio();
+  const next = start(state, Date.now());
+  commit(next);
+  announce(`${phaseLabel(next.phase)} started`);
+});
+
+breakSkipBtn.addEventListener("click", () => {
+  if (!breakWaiting(state)) return;
+  choosePhase("focus");
+});
+
 document.addEventListener("keydown", (event) => {
   if (event.metaKey || event.ctrlKey || event.altKey) return;
   if (alarmOpen) {
@@ -777,6 +841,28 @@ document.addEventListener("keydown", (event) => {
       if (document.activeElement !== alarmBtn) {
         event.preventDefault();
         alarmBtn.click();
+      }
+      return;
+    }
+    event.preventDefault();
+    return;
+  }
+  if (breakOpen) {
+    if (event.key === "Tab") {
+      const focused = document.activeElement;
+      if (event.shiftKey && focused === breakStartBtn) {
+        event.preventDefault();
+        breakSkipBtn.focus();
+      } else if (!event.shiftKey && focused === breakSkipBtn) {
+        event.preventDefault();
+        breakStartBtn.focus();
+      }
+      return;
+    }
+    if (event.key === " " || event.key === "Enter") {
+      if (document.activeElement?.tagName !== "BUTTON") {
+        event.preventDefault();
+        breakStartBtn.click();
       }
       return;
     }

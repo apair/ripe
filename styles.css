@@ -932,6 +932,45 @@ dialog::backdrop {
   min-width: 12rem;
 }
 
+.break-overlay {
+  --blink-a: #1c5a36;
+  --blink-b: #fbf6ee;
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: var(--blink-a);
+  animation: break-blink 1s step-end infinite;
+}
+
+body[data-phase="long"] .break-overlay {
+  --blink-a: #2a3864;
+}
+
+.break-overlay[hidden] { display: none; }
+
+@keyframes break-blink {
+  0% { background: var(--blink-a); }
+  50% { background: var(--blink-b); }
+  100% { background: var(--blink-a); }
+}
+
+.break-overlay .alarm-kicker { color: var(--short); }
+body[data-phase="long"] .break-overlay .alarm-kicker { color: var(--long); }
+
+.break-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: center;
+}
+
+.break-actions .alarm-resume {
+  min-width: 9rem;
+}
+
 @keyframes counted {
   from { transform: translateY(2px); }
   to { transform: none; }
