@@ -20,6 +20,7 @@ export const DEFAULT_SETTINGS = {
   shortMin: 5,
   longMin: 15,
   roundsUntilLong: 4,
+  pauseAlarmMin: 5,
   autoStartBreaks: false,
   autoStartFocus: false,
   autoCheckTasks: false,
@@ -40,12 +41,12 @@ const LIMITS = {
   shortMin: [0, 60],
   longMin: [0, 60],
   roundsUntilLong: [1, 12],
+  pauseAlarmMin: [1, 120],
   estimate: [1, 99],
 };
 
 const AUTO_START_WINDOW_MS = 5000;
 const AUTO_START_DELAY_MS = 2000;
-export const PAUSE_ALARM_AFTER_MS = 5 * 60 * 1000;
 
 export function durationMs(settings, phase) {
   const key = phase === "short" ? "shortMin" : phase === "long" ? "longMin" : "focusMin";
@@ -201,7 +202,7 @@ export function pauseAlarmDue(state, now) {
   return state.status === "paused"
     && state.phase === "focus"
     && Number.isFinite(state.pausedAt)
-    && now - state.pausedAt >= PAUSE_ALARM_AFTER_MS;
+    && now - state.pausedAt >= state.settings.pauseAlarmMin * 60 * 1000;
 }
 
 export function reset(state, now) {
@@ -523,6 +524,11 @@ function normalizeSettings(input) {
       source.roundsUntilLong,
       ...LIMITS.roundsUntilLong,
       DEFAULT_SETTINGS.roundsUntilLong,
+    ),
+    pauseAlarmMin: clamp(
+      source.pauseAlarmMin,
+      ...LIMITS.pauseAlarmMin,
+      DEFAULT_SETTINGS.pauseAlarmMin,
     ),
     autoStartBreaks: Boolean(source.autoStartBreaks),
     autoStartFocus: Boolean(source.autoStartFocus),

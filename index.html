@@ -161,6 +161,9 @@
         <label>Long break interval
           <input id="set-rounds" type="number" min="1" max="12" step="1" inputmode="numeric" placeholder="4">
         </label>
+        <label>Pause alarm after (minutes)
+          <input id="set-pause-alarm" type="number" min="1" max="120" step="1" inputmode="numeric" placeholder="5">
+        </label>
       </div>
       <div class="toggles">
         <label class="switch"><input id="set-auto-breaks" type="checkbox"> Auto start breaks</label>
@@ -171,7 +174,7 @@
         <label class="switch"><input id="set-notify" type="checkbox"> Desktop notification</label>
       </div>
       <p class="note" id="notify-note" hidden>Notifications are blocked in the browser settings.</p>
-      <p class="apply-note">A block that is already running keeps its current time. Reset it to use the new length. Set a break to 0 to skip it. Grey numbers are the defaults: 25, 5, and 15 minutes, with a long break every 4 pomodoros. Clear a field to go back to its default.</p>
+      <p class="apply-note">A block that is already running keeps its current time. Reset it to use the new length. Set a break to 0 to skip it. Grey numbers are the defaults: 25, 5, and 15 minutes, with a long break every 4 pomodoros. If a focus block stays paused for the pause alarm time (5 minutes by default), the page blinks until you resume. Clear a field to go back to its default.</p>
       <div class="sheet-actions sheet-actions-end">
         <button class="done-btn" type="submit">Done</button>
       </div>

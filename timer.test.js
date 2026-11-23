@@ -70,6 +70,31 @@ test("the pause alarm waits five minutes on a paused focus block", () => {
   assert.equal(pauseAlarmDue(state, now + 5 * MINUTE), true);
 });
 
+test("the pause alarm delay follows the setting", () => {
+  let now = 1_000_000;
+  let state = updateSettings(freshState(now), { pauseAlarmMin: 2 }, now);
+  state = pause(start(state, now), now);
+  assert.equal(pauseAlarmDue(state, now + 2 * MINUTE - 1), false);
+  assert.equal(pauseAlarmDue(state, now + 2 * MINUTE), true);
+
+  const longer = { ...state, settings: { ...state.settings, pauseAlarmMin: 30 } };
+  assert.equal(pauseAlarmDue(longer, now + 29 * MINUTE), false);
+  assert.equal(pauseAlarmDue(longer, now + 30 * MINUTE), true);
+});
+
+test("the pause alarm delay is clamped and defaults to five minutes", () => {
+  const now = 0;
+  assert.equal(freshState(now).settings.pauseAlarmMin, 5);
+  assert.equal(updateSettings(freshState(now), { pauseAlarmMin: 0 }, now).settings.pauseAlarmMin, 1);
+  assert.equal(updateSettings(freshState(now), { pauseAlarmMin: 500 }, now).settings.pauseAlarmMin, 120);
+  assert.equal(updateSettings(freshState(now), { pauseAlarmMin: "" }, now).settings.pauseAlarmMin, 1);
+
+  const saved = JSON.stringify({ ...freshState(now), settings: { focusMin: 30 } });
+  const loaded = hydrate(saved, now).state;
+  assert.equal(loaded.settings.focusMin, 30);
+  assert.equal(loaded.settings.pauseAlarmMin, 5);
+});
+
 test("the pause alarm never fires on a break or a running block", () => {
   let now = 1_000_000;
   let state = switchPhase(freshState(now), "short", now);
