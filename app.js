@@ -86,6 +86,8 @@ const setFocus = document.getElementById("set-focus");
 const setShort = document.getElementById("set-short");
 const setLong = document.getElementById("set-long");
 const setRounds = document.getElementById("set-rounds");
+const setPauseAlarm = document.getElementById("set-pause-alarm");
+const alarmCopyEl = document.getElementById("pause-alarm-copy");
 const setAutoBreaks = document.getElementById("set-auto-breaks");
 const setAutoFocus = document.getElementById("set-auto-focus");
 const setAutoCheck = document.getElementById("set-auto-check");
@@ -275,8 +277,11 @@ function openAlarm() {
   alarmBlink = null;
   alarmEl.hidden = false;
   appRoot.inert = true;
+  const minutes = state.settings.pauseAlarmMin;
+  const span = minutes === 1 ? "1 minute" : `${minutes} minutes`;
+  alarmCopyEl.textContent = `The clock has been stopped for ${span}. Resume to finish this focus block.`;
   alarmBtn.focus();
-  announce("Focus paused for 5 minutes. Resume to continue.");
+  announce(`Focus paused for ${span}. Resume to continue.`);
 }
 
 function closeAlarm() {
@@ -458,6 +463,7 @@ function syncSettingsForm() {
   setNumber(setShort, state.settings.shortMin, DEFAULT_SETTINGS.shortMin);
   setNumber(setLong, state.settings.longMin, DEFAULT_SETTINGS.longMin);
   setNumber(setRounds, state.settings.roundsUntilLong, DEFAULT_SETTINGS.roundsUntilLong);
+  setNumber(setPauseAlarm, state.settings.pauseAlarmMin, DEFAULT_SETTINGS.pauseAlarmMin);
   setAutoBreaks.checked = state.settings.autoStartBreaks;
   setAutoFocus.checked = state.settings.autoStartFocus;
   setAutoCheck.checked = state.settings.autoCheckTasks;
@@ -481,6 +487,7 @@ function readSettingsPatch() {
     shortMin: numberField(setShort, DEFAULT_SETTINGS.shortMin),
     longMin: numberField(setLong, DEFAULT_SETTINGS.longMin),
     roundsUntilLong: numberField(setRounds, DEFAULT_SETTINGS.roundsUntilLong),
+    pauseAlarmMin: numberField(setPauseAlarm, DEFAULT_SETTINGS.pauseAlarmMin),
     autoStartBreaks: setAutoBreaks.checked,
     autoStartFocus: setAutoFocus.checked,
     autoCheckTasks: setAutoCheck.checked,
@@ -724,7 +731,7 @@ dialog.addEventListener("close", () => {
   openSettingsBtn.focus();
 });
 
-for (const input of [setFocus, setShort, setLong, setRounds]) {
+for (const input of [setFocus, setShort, setLong, setRounds, setPauseAlarm]) {
   input.addEventListener("change", applySettings);
 }
 for (const input of [setAutoBreaks, setAutoFocus, setAutoCheck, setAutoSwitch, setSound]) {
