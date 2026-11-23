@@ -855,6 +855,61 @@ dialog::backdrop {
   font-weight: 600;
 }
 
+.pause-alarm {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: #9d2c22;
+  animation: alarm-blink 1s step-end infinite;
+}
+
+.pause-alarm[hidden] { display: none; }
+
+@keyframes alarm-blink {
+  0% { background: #9d2c22; }
+  50% { background: #fbf6ee; }
+  100% { background: #9d2c22; }
+}
+
+.alarm-card {
+  width: min(460px, 100%);
+  padding: 1.75rem 1.6rem 1.5rem;
+  border-radius: 24px;
+  background: var(--paper);
+  color: var(--ink);
+  text-align: center;
+  box-shadow: var(--shadow);
+}
+
+.alarm-kicker {
+  margin: 0;
+  color: var(--focus);
+  font-size: 0.85rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.alarm-card h2 {
+  margin: 0.4rem 0 0;
+  font-family: "Fraunces", Georgia, serif;
+  font-weight: 500;
+  font-size: 1.85rem;
+  letter-spacing: -0.03em;
+}
+
+.alarm-copy {
+  margin: 0.6rem 0 1.25rem;
+  color: var(--muted);
+}
+
+.alarm-resume {
+  min-width: 12rem;
+}
+
 @keyframes counted {
   from { transform: translateY(2px); }
   to { transform: none; }

@@ -45,6 +45,7 @@ const LIMITS = {
 
 const AUTO_START_WINDOW_MS = 5000;
 const AUTO_START_DELAY_MS = 2000;
+export const PAUSE_ALARM_AFTER_MS = 5 * 60 * 1000;
 
 export function durationMs(settings, phase) {
   const key = phase === "short" ? "shortMin" : phase === "long" ? "longMin" : "focusMin";
@@ -58,6 +59,7 @@ export function freshState(now = Date.now(), settings = DEFAULT_SETTINGS) {
     phase: "focus",
     status: "idle",
     endsAt: null,
+    pausedAt: null,
     remainingMs: durationMs(normalized, "focus"),
     plannedMs: null,
     pomodorosToday: 0,
@@ -176,6 +178,7 @@ export function start(state, now) {
     ...state,
     status: "running",
     endsAt: now + state.remainingMs,
+    pausedAt: null,
     plannedMs,
     autoStartAt: null,
     banner: null,
@@ -188,9 +191,17 @@ export function pause(state, now) {
     ...state,
     status: "paused",
     endsAt: null,
+    pausedAt: now,
     autoStartAt: null,
     remainingMs: remaining(state, now),
   };
+}
+
+export function pauseAlarmDue(state, now) {
+  return state.status === "paused"
+    && state.phase === "focus"
+    && Number.isFinite(state.pausedAt)
+    && now - state.pausedAt >= PAUSE_ALARM_AFTER_MS;
 }
 
 export function reset(state, now) {
@@ -198,6 +209,7 @@ export function reset(state, now) {
     ...rollDay(state, now),
     status: "idle",
     endsAt: null,
+    pausedAt: null,
     remainingMs: durationMs(state.settings, state.phase),
     plannedMs: null,
     autoStartAt: null,
@@ -212,6 +224,7 @@ export function switchPhase(state, phase, now) {
     phase,
     status: "idle",
     endsAt: null,
+    pausedAt: null,
     remainingMs: durationMs(state.settings, phase),
     plannedMs: null,
     autoStartAt: null,
@@ -372,6 +385,10 @@ export function hydrate(json, now) {
   if (status === "running" && endsAt == null) status = "idle";
   if (status !== "running") endsAt = null;
 
+  let pausedAt = Number(data.pausedAt);
+  if (!Number.isFinite(pausedAt)) pausedAt = status === "paused" ? now : null;
+  if (status !== "paused") pausedAt = null;
+
   let remainingMs = Number(data.remainingMs);
   if (!Number.isFinite(remainingMs) || remainingMs < 0) remainingMs = durationMs(settings, phase);
   if (status === "idle") remainingMs = durationMs(settings, phase);
@@ -393,6 +410,7 @@ export function hydrate(json, now) {
     phase,
     status,
     endsAt,
+    pausedAt,
     remainingMs,
     plannedMs: Number.isFinite(Number(data.plannedMs)) ? Number(data.plannedMs) : null,
     pomodorosToday,
@@ -460,6 +478,7 @@ function finish(state, endedAt, now, allowAuto) {
       phase,
       status: "idle",
       endsAt: null,
+      pausedAt: null,
       remainingMs: dur,
       plannedMs: null,
       pomodorosToday,

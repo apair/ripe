@@ -12,6 +12,7 @@ import {
   pause,
   phaseLabel,
   pipMarks,
+  pauseAlarmDue,
   remaining,
   ringFraction,
   removeTask,
@@ -43,6 +44,9 @@ const cueEl = document.getElementById("cue");
 const summaryEl = document.getElementById("task-summary");
 const todayEl = document.getElementById("today");
 const plateBtn = document.getElementById("plate");
+const appRoot = document.getElementById("app-root");
+const alarmEl = document.getElementById("pause-alarm");
+const alarmBtn = document.getElementById("alarm-resume");
 const resetBtn = document.getElementById("reset");
 const skipBtn = document.getElementById("skip");
 const confirmReset = document.getElementById("confirm-reset");
@@ -95,6 +99,8 @@ let pulseTaskId = null;
 let pulseTimer = 0;
 let audioCtx = null;
 let lastAnnouncement = "";
+let alarmOpen = false;
+let alarmBlink = null;
 
 function load() {
   let saved = null;
@@ -161,6 +167,7 @@ function tick() {
       persist();
     }
   }
+  syncAlarm(now);
 }
 
 function paintClock() {
@@ -177,7 +184,9 @@ function paintClock() {
   timeEl.setAttribute("aria-label", `${spoken} remaining, ${label}`);
   paintRing(left, total);
   paintFavicon(left, total);
-  if (state.status === "running" || state.status === "paused") {
+  if (alarmOpen) {
+    document.title = alarmBlink ? "Resume focus — Ripe" : `Paused ${clock} · ${label} — Ripe`;
+  } else if (state.status === "running" || state.status === "paused") {
     document.title = `${clock} · ${label} — Ripe`;
   } else {
     document.title = "Ripe — Pomodoro timer";
@@ -203,14 +212,14 @@ function paintRing(left, total) {
 function paintFavicon(left, total) {
   const fraction = ringFraction(left, total);
   const marks = Math.round(fraction * 100);
-  const key = `${state.phase}:${marks}`;
+  const key = `${state.phase}:${marks}:${alarmBlink}`;
   if (key === faviconKey) return;
   faviconKey = key;
 
   const ctx = faviconCanvas.getContext("2d");
   const size = FAVICON_SIZE;
   ctx.clearRect(0, 0, size, size);
-  ctx.fillStyle = "#fbf6ee";
+  ctx.fillStyle = alarmBlink === true ? "#9d2c22" : "#fbf6ee";
   ctx.beginPath();
   ctx.moveTo(16, 0);
   ctx.arcTo(size, 0, size, size, 16);
@@ -223,14 +232,14 @@ function paintFavicon(left, total) {
   const center = size / 2;
   const radius = 22;
   ctx.lineWidth = 8;
-  ctx.strokeStyle = "rgba(36, 28, 22, 0.14)";
+  ctx.strokeStyle = alarmBlink === true ? "rgba(251, 246, 238, 0.35)" : "rgba(36, 28, 22, 0.14)";
   ctx.lineCap = "butt";
   ctx.beginPath();
   ctx.arc(center, center, radius, 0, Math.PI * 2);
   ctx.stroke();
 
   if (fraction > 0) {
-    ctx.strokeStyle = FAVICON_COLOR[state.phase] || FAVICON_COLOR.focus;
+    ctx.strokeStyle = alarmBlink === true ? "#fbf6ee" : FAVICON_COLOR[state.phase] || FAVICON_COLOR.focus;
     ctx.lineCap = fraction > 0.985 || fraction < 0.015 ? "butt" : "round";
     const start = -Math.PI / 2;
     const end = start + fraction * Math.PI * 2;
@@ -247,10 +256,45 @@ function paintFavicon(left, total) {
   faviconLink = icon;
 }
 
+function syncAlarm(now = Date.now()) {
+  if (!pauseAlarmDue(state, now)) {
+    if (alarmOpen) closeAlarm();
+    return;
+  }
+  if (!alarmOpen) openAlarm();
+  const on = Math.floor(now / 500) % 2 === 0;
+  if (on !== alarmBlink) {
+    alarmBlink = on;
+    paintClock();
+  }
+}
+
+function openAlarm() {
+  if (dialog.open) dialog.close();
+  if (confirmReset.open) confirmReset.close();
+  alarmOpen = true;
+  alarmBlink = null;
+  alarmEl.hidden = false;
+  appRoot.inert = true;
+  alarmBtn.focus();
+  announce("Focus paused for 5 minutes. Resume to continue.");
+}
+
+function closeAlarm() {
+  const hadFocus = alarmEl.contains(document.activeElement);
+  alarmOpen = false;
+  alarmBlink = null;
+  alarmEl.hidden = true;
+  appRoot.inert = false;
+  if (hadFocus) plateBtn.focus();
+  paintClock();
+}
+
 function render() {
   document.body.dataset.phase = state.phase;
   const restore = restoreKey(document.activeElement);
   paintClock();
+  syncAlarm();
 
   phaseEl.textContent = phaseLabel(state.phase);
   chipEl.hidden = state.status !== "paused";
@@ -700,8 +744,24 @@ classicBtn.addEventListener("click", () => {
   syncSettingsForm();
 });
 
+alarmBtn.addEventListener("click", () => {
+  if (state.status === "paused") toggleRun();
+});
+
 document.addEventListener("keydown", (event) => {
   if (event.metaKey || event.ctrlKey || event.altKey) return;
+  if (alarmOpen) {
+    if (event.key === "Tab") return;
+    if (event.key === " " || event.key === "Enter") {
+      if (document.activeElement !== alarmBtn) {
+        event.preventDefault();
+        alarmBtn.click();
+      }
+      return;
+    }
+    event.preventDefault();
+    return;
+  }
   const tag = document.activeElement?.tagName;
   const typing = tag === "INPUT" || tag === "TEXTAREA";
   if (event.key === "Escape" && (dialog.open || confirmReset.open)) {
