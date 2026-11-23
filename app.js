@@ -13,6 +13,7 @@ import {
   phaseLabel,
   pipMarks,
   pauseAlarmDue,
+  pauseAlarmFraction,
   remaining,
   ringFraction,
   removeTask,
@@ -34,6 +35,8 @@ const STORAGE_KEY = "ripe.timer.v1";
 const THEME_KEY = "ripe.theme";
 const RING_RADIUS = 52;
 const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
+const WARN_RADIUS = 44;
+const WARN_LENGTH = 2 * Math.PI * WARN_RADIUS;
 
 const timeEl = document.getElementById("time");
 const phaseEl = document.getElementById("phase-label");
@@ -61,6 +64,7 @@ const taskForm = document.getElementById("task-form");
 const taskInput = document.getElementById("task-input");
 const addBtn = document.getElementById("add-task");
 const progressEl = document.getElementById("progress");
+const warnEl = document.getElementById("warn");
 let faviconLink = document.querySelector('link[rel="icon"]');
 const faviconCanvas = document.createElement("canvas");
 const FAVICON_SIZE = 64;
@@ -257,7 +261,19 @@ function paintFavicon(left, total) {
   faviconLink = icon;
 }
 
+function paintWarning(now) {
+  const fraction = pauseAlarmFraction(state, now);
+  if (fraction === null || alarmOpen) {
+    warnEl.classList.remove("is-on");
+    return;
+  }
+  warnEl.style.strokeDasharray = `${WARN_LENGTH}`;
+  warnEl.style.strokeDashoffset = `${WARN_LENGTH * (1 - fraction)}`;
+  warnEl.classList.add("is-on");
+}
+
 function syncAlarm(now = Date.now()) {
+  paintWarning(now);
   if (!pauseAlarmDue(state, now)) {
     if (alarmOpen) closeAlarm();
     return;

@@ -51,6 +51,7 @@
   --long: #2a3864;
   --accent: var(--focus);
   --wash: rgba(157, 44, 34, 0.16);
+  --warn: #b86b0c;
   --shadow: 0 28px 60px rgba(72, 42, 22, 0.13);
   --surface: rgba(251, 246, 238, 0.72);
   --surface-strong: rgba(251, 246, 238, 0.78);
@@ -87,6 +88,7 @@ html[data-theme="dark"] {
   --long: #9eb4e4;
   --accent: var(--focus);
   --wash: rgba(224, 122, 108, 0.22);
+  --warn: #eaa84a;
   --shadow: 0 28px 60px rgba(0, 0, 0, 0.45);
   --surface: rgba(36, 28, 23, 0.72);
   --surface-strong: rgba(36, 28, 23, 0.9);
@@ -336,6 +338,19 @@ html[data-theme="dark"] .theme-toggle .icon-sun { display: block; }
 }
 
 .ring.is-instant .ring-progress { transition: stroke 240ms ease; }
+
+.ring-warn {
+  fill: none;
+  stroke: var(--warn);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  opacity: 0;
+  transition: opacity 240ms ease, stroke-dashoffset 250ms linear;
+}
+
+.ring-warn.is-on { opacity: 1; }
+
+.ring.is-instant .ring-warn { transition: opacity 240ms ease; }
 
 .face {
   position: absolute;
