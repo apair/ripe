@@ -205,6 +205,14 @@ export function pauseAlarmDue(state, now) {
     && now - state.pausedAt >= state.settings.pauseAlarmMin * 60 * 1000;
 }
 
+export function pauseAlarmFraction(state, now) {
+  if (state.status !== "paused" || state.phase !== "focus" || !Number.isFinite(state.pausedAt)) {
+    return null;
+  }
+  const total = state.settings.pauseAlarmMin * 60 * 1000;
+  return Math.min(1, Math.max(0, 1 - (now - state.pausedAt) / total));
+}
+
 export function reset(state, now) {
   return {
     ...rollDay(state, now),

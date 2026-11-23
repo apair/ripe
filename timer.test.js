@@ -14,6 +14,7 @@ import {
   hydrate,
   pause,
   pauseAlarmDue,
+  pauseAlarmFraction,
   remaining,
   ringFraction,
   removeTask,
@@ -80,6 +81,24 @@ test("the pause alarm delay follows the setting", () => {
   const longer = { ...state, settings: { ...state.settings, pauseAlarmMin: 30 } };
   assert.equal(pauseAlarmDue(longer, now + 29 * MINUTE), false);
   assert.equal(pauseAlarmDue(longer, now + 30 * MINUTE), true);
+});
+
+test("the warning ring drains while a focus block is paused", () => {
+  const now = 1_000_000;
+  const running = start(freshState(now), now);
+  assert.equal(pauseAlarmFraction(running, now), null);
+
+  const paused = pause(running, now);
+  assert.equal(pauseAlarmFraction(paused, now), 1);
+  assert.equal(pauseAlarmFraction(paused, now + 2.5 * MINUTE), 0.5);
+  assert.equal(pauseAlarmFraction(paused, now + 5 * MINUTE), 0);
+  assert.equal(pauseAlarmFraction(paused, now + 20 * MINUTE), 0);
+
+  const twoMinute = updateSettings(paused, { pauseAlarmMin: 2 }, now);
+  assert.equal(pauseAlarmFraction(twoMinute, now + MINUTE), 0.5);
+
+  const breakPause = pause(start(switchPhase(freshState(now), "short", now), now), now);
+  assert.equal(pauseAlarmFraction(breakPause, now), null);
 });
 
 test("the pause alarm delay is clamped and defaults to five minutes", () => {
