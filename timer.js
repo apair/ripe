@@ -213,6 +213,13 @@ export function pauseAlarmFraction(state, now) {
   return Math.min(1, Math.max(0, 1 - (now - state.pausedAt) / total));
 }
 
+export function breakWaiting(state) {
+  return state.status === "idle"
+    && state.phase !== "focus"
+    && state.banner?.from === "focus"
+    && !Number.isFinite(state.autoStartAt);
+}
+
 export function reset(state, now) {
   return {
     ...rollDay(state, now),

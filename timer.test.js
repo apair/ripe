@@ -4,6 +4,7 @@ import {
   addTask,
   applyAutoStart,
   bannerText,
+  breakWaiting,
   CLASSIC_TIMING,
   clearFinished,
   completeIfDue,
@@ -99,6 +100,35 @@ test("the warning ring drains while a focus block is paused", () => {
 
   const breakPause = pause(start(switchPhase(freshState(now), "short", now), now), now);
   assert.equal(pauseAlarmFraction(breakPause, now), null);
+});
+
+test("a finished focus block waits for the break to be started or skipped", () => {
+  let now = 0;
+  let state = start(freshState(now), now);
+  assert.equal(breakWaiting(state), false);
+
+  const done = completeIfDue(state, state.endsAt);
+  assert.equal(done.state.phase, "short");
+  assert.equal(breakWaiting(done.state), true);
+
+  const hydrated = hydrate(JSON.stringify(done.state), state.endsAt + 60000).state;
+  assert.equal(breakWaiting(hydrated), true);
+
+  const started = start(done.state, state.endsAt + 1000);
+  assert.equal(breakWaiting(started), false);
+
+  const skipped = switchPhase(done.state, "focus", state.endsAt + 1000);
+  assert.equal(breakWaiting(skipped), false);
+  assert.equal(skipped.phase, "focus");
+});
+
+test("a break that auto-starts does not wait for a click", () => {
+  let now = 0;
+  let state = updateSettings(freshState(now), { autoStartBreaks: true }, now);
+  state = start(state, now);
+  const done = completeIfDue(state, state.endsAt);
+  assert.equal(done.state.phase, "short");
+  assert.equal(breakWaiting(done.state), false);
 });
 
 test("the pause alarm delay is clamped and defaults to five minutes", () => {

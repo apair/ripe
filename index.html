@@ -145,6 +145,18 @@
     </div>
   </div>
 
+  <div class="break-overlay" id="break-overlay" role="alertdialog" aria-modal="true" aria-labelledby="break-title" aria-describedby="break-copy" hidden>
+    <div class="alarm-card">
+      <p class="alarm-kicker" id="break-kicker">Break time</p>
+      <h2 id="break-title">Time for a short break</h2>
+      <p class="alarm-copy" id="break-copy">Your focus block is done. Start the break when you are ready, or skip it to get back to focus.</p>
+      <div class="break-actions">
+        <button class="primary alarm-resume" id="break-start" type="button">Start break</button>
+        <button class="quiet alarm-resume" id="break-skip" type="button">Skip break</button>
+      </div>
+    </div>
+  </div>
+
   <dialog id="settings" aria-labelledby="settings-title">
     <form class="sheet" id="settings-form" method="dialog">
       <h2 id="settings-title">Timing</h2>
