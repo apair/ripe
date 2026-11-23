@@ -13,6 +13,7 @@ import {
   freshState,
   hydrate,
   pause,
+  pauseAlarmDue,
   remaining,
   ringFraction,
   removeTask,
@@ -57,6 +58,44 @@ test("pause freezes the remaining time and resume continues it", () => {
   state = start(state, now);
   assert.equal(state.endsAt, now + (25 * MINUTE - 5000));
   assert.equal(state.plannedMs, 25 * MINUTE);
+});
+
+test("the pause alarm waits five minutes on a paused focus block", () => {
+  let now = 1_000_000;
+  let state = start(freshState(now), now);
+  now += 3 * MINUTE;
+  state = pause(state, now);
+  assert.equal(state.pausedAt, now);
+  assert.equal(pauseAlarmDue(state, now + 5 * MINUTE - 1), false);
+  assert.equal(pauseAlarmDue(state, now + 5 * MINUTE), true);
+});
+
+test("the pause alarm never fires on a break or a running block", () => {
+  let now = 1_000_000;
+  let state = switchPhase(freshState(now), "short", now);
+  state = start(state, now);
+  state = pause(state, now);
+  assert.equal(pauseAlarmDue(state, now + 10 * MINUTE), false);
+
+  let focus = start(freshState(now), now);
+  assert.equal(pauseAlarmDue(focus, now + 10 * MINUTE), false);
+});
+
+test("resuming, resetting, and switching clear the pause clock", () => {
+  let now = 1_000_000;
+  let state = pause(start(freshState(now), now), now + MINUTE);
+  assert.equal(start(state, now + 2 * MINUTE).pausedAt, null);
+  assert.equal(reset(state, now + 2 * MINUTE).pausedAt, null);
+  assert.equal(switchPhase(state, "short", now + 2 * MINUTE).pausedAt, null);
+  assert.equal(pauseAlarmDue(start(state, now + 2 * MINUTE), now + 60 * MINUTE), false);
+});
+
+test("a paused block keeps its pause clock across a reload", () => {
+  let now = 1_000_000;
+  const paused = pause(start(freshState(now), now), now + MINUTE);
+  const reloaded = hydrate(JSON.stringify(paused), now + 4 * MINUTE).state;
+  assert.equal(reloaded.pausedAt, now + MINUTE);
+  assert.equal(pauseAlarmDue(reloaded, now + 6 * MINUTE), true);
 });
 
 test("finishing a focus block opens a short break and counts it", () => {

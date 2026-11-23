@@ -30,7 +30,7 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body data-phase="focus">
-  <div class="app">
+  <div class="app" id="app-root">
     <header class="top">
       <div class="brand">
         <svg class="mark" viewBox="0 0 42 42" aria-hidden="true">
@@ -133,6 +133,15 @@
 
     <p class="foot">Click the timer or press Space to start or pause · N skips · R resets · 1 2 3 switches the interval</p>
     <p class="sr-only" id="live" aria-live="polite"></p>
+  </div>
+
+  <div class="pause-alarm" id="pause-alarm" role="alertdialog" aria-modal="true" aria-labelledby="pause-alarm-title" aria-describedby="pause-alarm-copy" hidden>
+    <div class="alarm-card">
+      <p class="alarm-kicker">Focus paused</p>
+      <h2 id="pause-alarm-title">Your block is still paused</h2>
+      <p class="alarm-copy" id="pause-alarm-copy">The clock has been stopped for 5 minutes. Resume to finish this focus block.</p>
+      <button class="primary alarm-resume" id="alarm-resume" type="button">Resume focus</button>
+    </div>
   </div>
 
   <dialog id="settings" aria-labelledby="settings-title">
