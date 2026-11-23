@@ -150,16 +150,16 @@
       <p class="sheet-lead">A pomodoro, then a short break. Every few pomodoros, take a long break. The number under the timer is today’s count, and it keeps going after the long break.</p>
       <div class="fields">
         <label>Focus length
-          <input id="set-focus" type="number" min="1" max="120" step="1" inputmode="numeric" value="25">
+          <input id="set-focus" type="number" min="1" max="120" step="1" inputmode="numeric" placeholder="25">
         </label>
         <label>Short break
-          <input id="set-short" type="number" min="0" max="60" step="1" inputmode="numeric" value="5">
+          <input id="set-short" type="number" min="0" max="60" step="1" inputmode="numeric" placeholder="5">
         </label>
         <label>Long break
-          <input id="set-long" type="number" min="0" max="60" step="1" inputmode="numeric" value="15">
+          <input id="set-long" type="number" min="0" max="60" step="1" inputmode="numeric" placeholder="15">
         </label>
         <label>Long break interval
-          <input id="set-rounds" type="number" min="1" max="12" step="1" inputmode="numeric" value="4">
+          <input id="set-rounds" type="number" min="1" max="12" step="1" inputmode="numeric" placeholder="4">
         </label>
       </div>
       <div class="toggles">
@@ -171,9 +171,8 @@
         <label class="switch"><input id="set-notify" type="checkbox"> Desktop notification</label>
       </div>
       <p class="note" id="notify-note" hidden>Notifications are blocked in the browser settings.</p>
-      <p class="apply-note">A block that is already running keeps its current time. Reset it to use the new length. Set a break to 0 to skip it. The classic rhythm is 25, 5, and 15, with a long break every 4 pomodoros.</p>
-      <div class="sheet-actions">
-        <button class="ghost-btn" id="classic" type="button">Use classic timing</button>
+      <p class="apply-note">A block that is already running keeps its current time. Reset it to use the new length. Set a break to 0 to skip it. Grey numbers are the defaults: 25, 5, and 15 minutes, with a long break every 4 pomodoros. Clear a field to go back to its default.</p>
+      <div class="sheet-actions sheet-actions-end">
         <button class="done-btn" type="submit">Done</button>
       </div>
     </form>

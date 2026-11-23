@@ -838,6 +838,13 @@ dialog::backdrop {
   margin-top: 1.1rem;
 }
 
+.sheet-actions-end { justify-content: flex-end; }
+
+.fields input::placeholder {
+  color: var(--faint);
+  opacity: 1;
+}
+
 .ghost-btn, .done-btn {
   min-height: 44px;
   padding: 0.55rem 1rem;
