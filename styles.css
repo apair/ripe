@@ -288,12 +288,15 @@ html[data-theme="dark"] .theme-toggle .icon-sun { display: block; }
 
 .timer-row {
   display: grid;
-  grid-template-columns: minmax(0, 360px) auto;
+  grid-template-columns: 52px minmax(0, 360px) 52px;
   align-items: center;
   justify-content: center;
   gap: 0.85rem;
   width: 100%;
 }
+
+.timer-row > .plate { grid-column: 2; }
+.timer-row > .next { grid-column: 3; }
 
 .plate {
   position: relative;
