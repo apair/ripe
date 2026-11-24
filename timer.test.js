@@ -307,6 +307,25 @@ test("changing the length updates an idle timer and leaves a running one alone",
   assert.equal(state.banner, null);
 });
 
+test("reset sends the interval number back to #1 and keeps today's totals", () => {
+  let now = 0;
+  let state = freshState(now);
+  for (let round = 0; round < 13; round += 1) {
+    state = start(state, now);
+    const done = completeIfDue(state, state.endsAt);
+    state = switchPhase(done.state, "focus", state.endsAt);
+    now = state.endsAt;
+  }
+  assert.equal(roundLabel(state), "#14");
+  assert.equal(state.focusDoneToday, 13);
+
+  state = start(state, now);
+  state = reset(state, now);
+  assert.equal(roundLabel(state), "#1");
+  assert.equal(state.focusDoneToday, 13);
+  assert.equal(state.history.length, 13);
+});
+
 test("settings are clamped and the classic rhythm restores the defaults", () => {
   const state = updateSettings(freshState(0), {
     focusMin: 0,

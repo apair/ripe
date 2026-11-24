@@ -691,7 +691,7 @@ document.addEventListener("pointerdown", unlockAudio, { passive: true });
 plateBtn.addEventListener("click", toggleRun);
 resetBtn.addEventListener("click", () => {
   const label = phaseLabel(state.phase).toLowerCase();
-  confirmLead.textContent = `The ${label} clock goes back to the start. This interval is not counted.`;
+  confirmLead.textContent = `The ${label} clock goes back to the start and the interval number goes back to #1. This interval is not counted.`;
   confirmReset.showModal();
 });
 confirmReset.addEventListener("click", (event) => {

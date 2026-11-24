@@ -228,6 +228,7 @@ export function reset(state, now) {
     pausedAt: null,
     remainingMs: durationMs(state.settings, state.phase),
     plannedMs: null,
+    pomodorosToday: 0,
     autoStartAt: null,
     banner: null,
   };
